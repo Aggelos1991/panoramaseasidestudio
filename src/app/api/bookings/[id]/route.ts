@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
 
 export async function GET(
   _request: NextRequest,
@@ -16,7 +17,12 @@ export async function GET(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    return NextResponse.json(booking);
+    const decrypted = decryptPII(
+      booking as unknown as Record<string, unknown>,
+      [...BOOKING_PII_FIELDS],
+    );
+
+    return NextResponse.json(decrypted);
   } catch (error) {
     console.error("Booking fetch error:", error);
     return NextResponse.json(
@@ -44,7 +50,12 @@ export async function PATCH(
       data,
     });
 
-    return NextResponse.json(booking);
+    const decrypted = decryptPII(
+      booking as unknown as Record<string, unknown>,
+      [...BOOKING_PII_FIELDS],
+    );
+
+    return NextResponse.json(decrypted);
   } catch (error) {
     console.error("Booking update error:", error);
     return NextResponse.json(

@@ -154,11 +154,44 @@ model AdminUser {
 
 model ContactSubmission {
   id        String   @id @default(cuid())
-  name      String
-  email     String
+  name      String // PII — encrypted at app level
+  email     String // PII — encrypted at app level
   subject   String?
-  message   String   @db.Text
+  message   String   @db.Text // PII — encrypted at app level
   locale    String   @default("en")
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([isRead])
+}
+
+// ─── GDPR Compliance ────────────────────────────────────────
+
+model GdprAuditLog {
+  id         String   @id @default(cuid())
+  action     String // ACCESS, EXPORT, DELETE, ANONYMIZE, CONSENT_GIVEN, CONSENT_WITHDRAWN
+  entityType String // Booking, ContactSubmission
+  entityId   String
+  details    String?  @db.Text
+  ipAddress  String?
+  userAgent  String?
+  performedBy String? // admin email or "system"
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model GdprDeletionRequest {
+  id            String   @id @default(cuid())
+  email         String
+  requestedAt   DateTime @default(now())
+  completedAt   DateTime?
+  status        String   @default("PENDING") // PENDING, COMPLETED, REJECTED
+  deletedData   String?  @db.Text // JSON summary of what was deleted
+  processedBy   String? // admin email
+
+  @@index([email])
+  @@index([status])
 }

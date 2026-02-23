@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
 
-const statusColors: Record<string, string> = {
+const STATUS: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-700",
   CONFIRMED: "bg-green-100 text-green-700",
   CANCELLED: "bg-red-100 text-red-700",
@@ -12,11 +12,14 @@ const statusColors: Record<string, string> = {
 };
 
 async function getBookings() {
-  return prisma.booking.findMany({
+  const raw = await prisma.booking.findMany({
     include: { room: true },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+  return raw.map((b) =>
+    decryptPII(b as unknown as Record<string, unknown>, [...BOOKING_PII_FIELDS]),
+  ) as unknown as typeof raw;
 }
 
 export default async function AdminBookingsPage() {
@@ -29,99 +32,56 @@ export default async function AdminBookingsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Manage all hotel bookings
-          </p>
-        </div>
-      </div>
+      <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
+      <p className="mt-1 text-sm text-gray-500">Manage all reservations</p>
 
-      <div className="mt-8 rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase text-gray-500">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
               <tr>
-                <th className="px-6 py-3">Reference</th>
-                <th className="px-6 py-3">Guest</th>
-                <th className="px-6 py-3">Room</th>
-                <th className="px-6 py-3">Check-in</th>
-                <th className="px-6 py-3">Check-out</th>
-                <th className="px-6 py-3">Nights</th>
-                <th className="px-6 py-3">Total</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Payment</th>
-                <th className="px-6 py-3">Actions</th>
+                <th className="px-5 py-2.5 text-left">Guest</th>
+                <th className="px-5 py-2.5 text-left">Room</th>
+                <th className="px-5 py-2.5 text-left">Dates</th>
+                <th className="px-5 py-2.5 text-left">Status</th>
+                <th className="px-5 py-2.5 text-right">Total</th>
+                <th className="px-5 py-2.5 text-right" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y">
               {bookings.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={10}
-                    className="px-6 py-12 text-center text-gray-400"
-                  >
+                  <td colSpan={6} className="py-12 text-center text-gray-400">
                     No bookings yet
                   </td>
                 </tr>
               ) : (
-                bookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono text-sm font-medium text-terracotta">
-                      {booking.referenceNumber}
+                bookings.map((b) => (
+                  <tr key={b.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-3">
+                      <p className="font-medium text-gray-900">
+                        {b.guestFirstName} {b.guestLastName}
+                      </p>
+                      <p className="text-xs text-gray-400">{b.guestEmail}</p>
                     </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {booking.guestFirstName} {booking.guestLastName}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {booking.guestEmail}
-                        </p>
-                      </div>
+                    <td className="px-5 py-3 text-gray-500">{b.room.nameEn}</td>
+                    <td className="px-5 py-3 text-gray-500 whitespace-nowrap">
+                      {format(new Date(b.checkIn), "MMM dd")} &ndash;{" "}
+                      {format(new Date(b.checkOut), "MMM dd")}
+                      <span className="ml-1 text-xs text-gray-400">({b.nights}n)</span>
                     </td>
-                    <td className="px-6 py-4 text-gray-500">
-                      {booking.room.nameEn}
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">
-                      {format(new Date(booking.checkIn), "MMM dd, yyyy")}
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">
-                      {format(new Date(booking.checkOut), "MMM dd, yyyy")}
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">
-                      {booking.nights}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-gray-900">
-                      &euro;{Number(booking.totalPrice)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          statusColors[booking.status] || "bg-gray-100",
-                        )}
-                      >
-                        {booking.status}
+                    <td className="px-5 py-3">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS[b.status] || "bg-gray-100"}`}>
+                        {b.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          booking.paymentStatus === "PAID"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-yellow-100 text-yellow-700",
-                        )}
-                      >
-                        {booking.paymentStatus}
-                      </span>
+                    <td className="px-5 py-3 text-right font-medium">
+                      &euro;{Number(b.totalPrice)}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3 text-right">
                       <Link
-                        href={`/admin/bookings/${booking.id}`}
-                        className="text-sm font-medium text-terracotta hover:underline"
+                        href={`/admin/bookings/${b.id}`}
+                        className="text-sm text-terracotta hover:underline"
                       >
                         View
                       </Link>

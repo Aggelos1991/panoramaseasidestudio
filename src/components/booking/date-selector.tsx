@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { DayPicker, type DateRange } from "react-day-picker";
-import { CalendarDays, Users, Moon } from "lucide-react";
+import { CalendarDays, Users, Moon, ChevronDown } from "lucide-react";
 import { format, addDays, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -57,124 +57,135 @@ export function DateSelector({
   }
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-soft sm:p-8">
-      <h3 className="mb-6 font-serif text-xl font-semibold text-deep-blue">
-        {t("selectDates")}
-      </h3>
-
-      <div className="space-y-5">
-        {/* Date & guest cards */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          {/* Check-in */}
-          <button
-            type="button"
-            onClick={() => setActiveField("checkIn")}
-            className={cn(
-              "rounded-xl border-2 bg-cream p-4 text-left shadow-sm transition-all duration-200",
-              activeField === "checkIn"
-                ? "border-terracotta ring-2 ring-terracotta/20 shadow-md"
-                : "border-gray-200 hover:border-terracotta/50 hover:shadow-md",
-            )}
-          >
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              {t("checkIn")}
+    <div className="rounded-2xl bg-white/80 backdrop-blur-md p-4 shadow-soft sm:p-6 border border-white/40">
+      {/* Compact selector row */}
+      <div className="grid grid-cols-3 items-stretch gap-0 sm:flex sm:gap-3">
+        {/* Check-in */}
+        <button
+          type="button"
+          onClick={() =>
+            setActiveField(activeField === "checkIn" ? null : "checkIn")
+          }
+          className={cn(
+            "flex-1 rounded-xl px-3 py-3 text-left transition-all duration-200 sm:px-4",
+            activeField === "checkIn"
+              ? "bg-terracotta/8 ring-1 ring-terracotta/30"
+              : "bg-white/60 hover:bg-white/80",
+          )}
+        >
+          <span className="text-[10px] font-medium uppercase tracking-widest text-gray-400">
+            {t("checkIn")}
+          </span>
+          <div className="mt-1 flex items-center gap-2">
+            <CalendarDays className="h-3.5 w-3.5 text-terracotta/70" />
+            <span className="text-sm font-semibold text-deep-blue">
+              {checkIn ? format(checkIn, "MMM dd") : "Select date"}
             </span>
-            <div className="mt-2 flex items-center gap-2.5">
-              <CalendarDays className="h-5 w-5 flex-shrink-0 text-terracotta" />
-              <span className="text-base font-semibold text-deep-blue">
-                {checkIn ? format(checkIn, "MMM dd, yyyy") : "—"}
-              </span>
-            </div>
-          </button>
-
-          {/* Check-out */}
-          <button
-            type="button"
-            onClick={() => setActiveField("checkOut")}
-            className={cn(
-              "rounded-xl border-2 bg-cream p-4 text-left shadow-sm transition-all duration-200",
-              activeField === "checkOut"
-                ? "border-terracotta ring-2 ring-terracotta/20 shadow-md"
-                : "border-gray-200 hover:border-terracotta/50 hover:shadow-md",
-            )}
-          >
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              {t("checkOut")}
-            </span>
-            <div className="mt-2 flex items-center gap-2.5">
-              <CalendarDays className="h-5 w-5 flex-shrink-0 text-terracotta" />
-              <span className="text-base font-semibold text-deep-blue">
-                {checkOut ? format(checkOut, "MMM dd, yyyy") : "—"}
-              </span>
-            </div>
-          </button>
-
-          {/* Guests */}
-          <div className="rounded-xl border-2 border-gray-200 bg-cream p-4 shadow-sm">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              {t("guests")}
-            </label>
-            <div className="mt-2 flex items-center gap-2.5">
-              <Users className="h-5 w-5 flex-shrink-0 text-terracotta" />
-              <select
-                value={guests}
-                onChange={(e) => onGuestsChange(Number(e.target.value))}
-                className="appearance-none bg-transparent text-base font-semibold text-deep-blue outline-none cursor-pointer"
-              >
-                {[1, 2, 3, 4, 5, 6].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
+        </button>
+
+        {/* Divider */}
+        <div className="hidden sm:flex items-center">
+          <div className="h-8 w-px bg-gray-200" />
         </div>
 
-        {/* Nights badge */}
-        {nights > 0 && (
-          <div className="flex items-center justify-center gap-2 text-sm text-terracotta font-medium">
-            <Moon className="h-4 w-4" />
-            {t("nights", { count: nights })}
+        {/* Check-out */}
+        <button
+          type="button"
+          onClick={() =>
+            setActiveField(activeField === "checkOut" ? null : "checkOut")
+          }
+          className={cn(
+            "flex-1 rounded-xl px-3 py-3 text-left transition-all duration-200 sm:px-4",
+            activeField === "checkOut"
+              ? "bg-terracotta/8 ring-1 ring-terracotta/30"
+              : "bg-white/60 hover:bg-white/80",
+          )}
+        >
+          <span className="text-[10px] font-medium uppercase tracking-widest text-gray-400">
+            {t("checkOut")}
+          </span>
+          <div className="mt-1 flex items-center gap-2">
+            <CalendarDays className="h-3.5 w-3.5 text-terracotta/70" />
+            <span className="text-sm font-semibold text-deep-blue">
+              {checkOut ? format(checkOut, "MMM dd") : "Select date"}
+            </span>
           </div>
-        )}
+        </button>
 
-        {/* Helper text */}
-        {activeField && (
-          <p className="text-center text-sm text-terracotta/80 animate-fade-in">
+        {/* Divider */}
+        <div className="hidden sm:flex items-center">
+          <div className="h-8 w-px bg-gray-200" />
+        </div>
+
+        {/* Guests */}
+        <div className="relative flex-1 rounded-xl bg-white/60 px-3 py-3 sm:px-4">
+          <span className="text-[10px] font-medium uppercase tracking-widest text-gray-400">
+            {t("guests")}
+          </span>
+          <div className="mt-1 flex items-center gap-2">
+            <Users className="h-3.5 w-3.5 text-terracotta/70" />
+            <select
+              value={guests}
+              onChange={(e) => onGuestsChange(Number(e.target.value))}
+              className="appearance-none bg-transparent text-sm font-semibold text-deep-blue outline-none cursor-pointer pr-4"
+            >
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <option key={n} value={n}>
+                  {n} {n === 1 ? "guest" : "guests"}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Nights badge */}
+      {nights > 0 && (
+        <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-terracotta/80 font-medium">
+          <Moon className="h-3 w-3" />
+          {t("nights", { count: nights })}
+        </div>
+      )}
+
+      {/* Calendar — slides open when a date field is active */}
+      {activeField && (
+        <div
+          ref={calendarRef}
+          className="mt-4 border-t border-gray-100 pt-4"
+        >
+          <p className="mb-3 text-center text-xs text-gray-400">
             {activeField === "checkIn"
               ? t("selectCheckIn")
               : t("selectCheckOut")}
           </p>
-        )}
-
-        {/* Calendar */}
-        <div
-          ref={calendarRef}
-          className={cn(
-            "flex justify-center overflow-x-auto [&_.rdp-root]:font-sans",
-            "[&_.rdp-day_button.rdp-day_button]:rounded-lg",
-            "[&_.rdp-selected_.rdp-day_button]:bg-terracotta",
-            "[&_.rdp-range_middle_.rdp-day_button]:bg-terracotta/10",
-            "[&_.rdp-range_middle_.rdp-day_button]:text-terracotta",
-            "[&_.rdp-today:not(.rdp-selected)_.rdp-day_button]:border-terracotta",
-            "[&_.rdp-today:not(.rdp-selected)_.rdp-day_button]:border",
-          )}
-        >
-          <DayPicker
-            mode="range"
-            selected={
-              checkIn
-                ? { from: checkIn, to: checkOut || undefined }
-                : undefined
-            }
-            onSelect={handleRangeSelect}
-            numberOfMonths={isMobile ? 1 : 2}
-            disabled={{ before: addDays(new Date(), 1) }}
-            fromMonth={new Date()}
-          />
+          <div
+            className={cn(
+              "flex justify-center overflow-x-auto [&_.rdp-root]:font-sans [&_.rdp-root]:text-sm",
+              "[&_.rdp-day_button.rdp-day_button]:rounded-lg [&_.rdp-day_button.rdp-day_button]:text-xs",
+              "[&_.rdp-selected_.rdp-day_button]:bg-terracotta",
+              "[&_.rdp-range_middle_.rdp-day_button]:bg-terracotta/10",
+              "[&_.rdp-range_middle_.rdp-day_button]:text-terracotta",
+              "[&_.rdp-today:not(.rdp-selected)_.rdp-day_button]:border-terracotta/40",
+              "[&_.rdp-today:not(.rdp-selected)_.rdp-day_button]:border",
+            )}
+          >
+            <DayPicker
+              mode="range"
+              selected={
+                checkIn
+                  ? { from: checkIn, to: checkOut || undefined }
+                  : undefined
+              }
+              onSelect={handleRangeSelect}
+              numberOfMonths={isMobile ? 1 : 2}
+              disabled={{ before: addDays(new Date(), 1) }}
+              fromMonth={new Date()}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

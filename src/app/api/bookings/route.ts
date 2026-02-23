@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateReferenceNumber } from "@/lib/utils";
 import { parseISO } from "date-fns";
+import { encrypt, decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,12 +99,12 @@ export async function POST(request: NextRequest) {
           nights,
           guests,
           totalPrice,
-          guestFirstName: firstName,
-          guestLastName: lastName,
-          guestEmail: email,
-          guestPhone: phone || null,
-          guestCountry: country || null,
-          specialRequests: specialRequests || null,
+          guestFirstName: encrypt(firstName),
+          guestLastName: encrypt(lastName),
+          guestEmail: encrypt(email),
+          guestPhone: phone ? encrypt(phone) : null,
+          guestCountry: country ? encrypt(country) : null,
+          specialRequests: specialRequests ? encrypt(specialRequests) : null,
           gdprConsent: true,
           gdprConsentAt: new Date(),
           locale,
@@ -146,7 +147,7 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
 
-    const [bookings, total] = await Promise.all([
+    const [rawBookings, total] = await Promise.all([
       prisma.booking.findMany({
         where,
         include: { room: true },
@@ -156,6 +157,10 @@ export async function GET(request: NextRequest) {
       }),
       prisma.booking.count({ where }),
     ]);
+
+    const bookings = rawBookings.map((b) =>
+      decryptPII(b as unknown as Record<string, unknown>, [...BOOKING_PII_FIELDS]),
+    );
 
     return NextResponse.json({
       bookings,

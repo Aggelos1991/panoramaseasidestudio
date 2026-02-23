@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { contactFormSchema } from "@/lib/validators";
 import { prisma } from "@/lib/prisma";
+import { encrypt } from "@/lib/gdpr-crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,10 +21,10 @@ export async function POST(request: NextRequest) {
     try {
       await prisma.contactSubmission.create({
         data: {
-          name,
-          email,
+          name: encrypt(name),
+          email: encrypt(email),
           subject: subject || null,
-          message,
+          message: encrypt(message),
         },
       });
     } catch {
