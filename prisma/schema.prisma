@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ─── Room Types ─────────────────────────────────────────────
+
+model Room {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  nameEn      String
+  nameEl      String
+  nameDe      String
+  descEn      String   @db.Text
+  descEl      String   @db.Text
+  descDe      String   @db.Text
+  capacity    Int
+  bedType     String
+  sizeSqm     Int
+  basePrice   Decimal  @db.Decimal(10, 2)
+  totalUnits  Int      @default(1)
+  amenities   String[]
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  images       RoomImage[]
+  bookings     Booking[]
+  pricingRules PricingRule[]
+  blockedDates BlockedDate[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model RoomImage {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([roomId])
+}
+
+// ─── Pricing ────────────────────────────────────────────────
+
+model PricingRule {
+  id            String   @id @default(cuid())
+  roomId        String
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  name          String
+  startDate     DateTime @db.Date
+  endDate       DateTime @db.Date
+  pricePerNight Decimal  @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([roomId, startDate, endDate])
+}
+
+model BlockedDate {
+  id     String   @id @default(cuid())
+  roomId String
+  room   Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+  reason String?
+
+  @@unique([roomId, date])
+  @@index([roomId, date])
+}
+
+// ─── Bookings ───────────────────────────────────────────────
+
+model Booking {
+  id              String        @id @default(cuid())
+  referenceNumber String        @unique
+  roomId          String
+  room            Room          @relation(fields: [roomId], references: [id])
+  checkIn         DateTime      @db.Date
+  checkOut        DateTime      @db.Date
+  nights          Int
+  guests          Int
+  totalPrice      Decimal       @db.Decimal(10, 2)
+  currency        String        @default("EUR")
+  status          BookingStatus @default(PENDING)
+
+  guestFirstName  String
+  guestLastName   String
+  guestEmail      String
+  guestPhone      String?
+  guestCountry    String?
+  specialRequests String?       @db.Text
+
+  // GDPR consent
+  gdprConsent     Boolean       @default(false)
+  gdprConsentAt   DateTime?
+
+  // Payment tracking (manual / external)
+  paymentStatus   PaymentStatus @default(UNPAID)
+  paymentMethod   String?
+  paymentNotes    String?       @db.Text
+
+  // Legacy Stripe fields (kept for migration compat)
+  stripeSessionId String?       @unique
+  stripePaymentId String?
+
+  locale    String   @default("en")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([referenceNumber])
+  @@index([roomId, checkIn, checkOut])
+  @@index([status])
+  @@index([guestEmail])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// ─── Admin ──────────────────────────────────────────────────
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Contact Submissions ────────────────────────────────────
+
+model ContactSubmission {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String?
+  message   String   @db.Text
+  locale    String   @default("en")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
