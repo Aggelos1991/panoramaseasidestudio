@@ -3,10 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { parseICal } from "@/lib/ical";
 import { parseISO, differenceInCalendarDays } from "date-fns";
 import { sendBookingNotification } from "@/lib/telegram";
+import { getAdminSession } from "@/lib/auth";
 
 // POST — sync a single channel or all channels
 export async function POST(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { channelId } = body;
 

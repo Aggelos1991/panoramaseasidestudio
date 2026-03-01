@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadImage } from "@/lib/cloudinary";
+import { getAdminSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 

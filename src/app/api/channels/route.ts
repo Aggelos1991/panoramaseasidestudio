@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAdminSession } from "@/lib/auth";
 
 // GET — list all channels
 export async function GET() {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const channels = await prisma.channel.findMany({
       include: {
         room: { select: { nameEn: true, slug: true } },
@@ -25,6 +31,11 @@ export async function GET() {
 // POST — create a new channel
 export async function POST(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { name, platform, icalImportUrl, roomId, color } = body;
 
@@ -61,6 +72,11 @@ export async function POST(request: NextRequest) {
 // DELETE — delete a channel by id (passed as query param)
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStringArray, toJsonArray } from "@/lib/json-array";
+import { getAdminSession } from "@/lib/auth";
 
 function slugify(text: string): string {
   return text
@@ -38,6 +39,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const {
       nameEn,

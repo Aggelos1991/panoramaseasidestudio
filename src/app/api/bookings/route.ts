@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { generateReferenceNumber } from "@/lib/utils";
 import { parseISO } from "date-fns";
 import { encrypt, decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
+import { getAdminSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -149,6 +150,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const page = parseInt(searchParams.get("page") || "1");

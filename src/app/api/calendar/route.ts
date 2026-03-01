@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
+import { getAdminSession } from "@/lib/auth";
 import { startOfMonth, endOfMonth, addDays, parseISO, format } from "date-fns";
 
 const INTERNAL_COLOR = "#10b981"; // emerald-500
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const monthParam = request.nextUrl.searchParams.get("month");
     const monthDate = monthParam
       ? parseISO(monthParam + "-01")

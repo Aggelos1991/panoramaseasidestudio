@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseIntArray, toJsonArray } from "@/lib/json-array";
+import { getAdminSession } from "@/lib/auth";
 
 // GET — list all pricing rules (optionally filter by roomId)
 export async function GET(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const roomId = request.nextUrl.searchParams.get("roomId");
 
     const rules = await prisma.pricingRule.findMany({
@@ -33,6 +39,11 @@ export async function GET(request: NextRequest) {
 // POST — create a new pricing rule
 export async function POST(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { name, roomId, startDate, endDate, pricePerNight, daysOfWeek } = body;
 
@@ -101,6 +112,11 @@ export async function POST(request: NextRequest) {
 // DELETE — delete a pricing rule by id
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const id = request.nextUrl.searchParams.get("id");
 
     if (!id) {
