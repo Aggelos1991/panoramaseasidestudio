@@ -13,6 +13,7 @@ import {
   Hotel,
   Menu,
   X,
+  Settings2,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/admin/rooms", label: "Rooms", icon: BedDouble },
   { href: "/admin/pricing", label: "Pricing", icon: Euro },
   { href: "/admin/channels", label: "Channels", icon: Link2 },
+  { href: "/admin/settings", label: "Settings", icon: Settings2 },
 ];
 
 export function AdminSidebar() {
