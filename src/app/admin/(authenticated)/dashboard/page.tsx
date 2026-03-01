@@ -5,14 +5,7 @@ import { decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatCard } from "@/components/admin/stat-card";
 import { BookingsTable } from "../bookings/bookings-table";
-
-const PLATFORM_BADGE: Record<string, { label: string; cls: string }> = {
-  BOOKING_COM: { label: "Booking.com", cls: "bg-blue-50 text-blue-700 border border-blue-200/50" },
-  EXPEDIA: { label: "Expedia", cls: "bg-yellow-50 text-yellow-700 border border-yellow-200/50" },
-  AIRBNB: { label: "Airbnb", cls: "bg-rose-50 text-rose-700 border border-rose-200/50" },
-  VRBO: { label: "VRBO", cls: "bg-indigo-50 text-indigo-700 border border-indigo-200/50" },
-  OTHER: { label: "Other", cls: "bg-gray-50 text-gray-600 border border-gray-200/50" },
-};
+import { ChannelActivityTable } from "@/components/admin/channel-activity-table";
 
 async function getStats() {
   const now = new Date();
@@ -80,11 +73,11 @@ async function getStats() {
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
-    // Last 5 external bookings
+    // Recent external bookings
     prisma.externalBooking.findMany({
       include: { room: true, channel: true },
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 50,
     }),
   ]);
 
@@ -149,6 +142,15 @@ export default async function AdminDashboardPage() {
     room: { nameEn: b.room.nameEn },
   }));
 
+  const serializedExternal = stats.recentExternal.map((eb) => ({
+    id: eb.id,
+    summary: eb.summary,
+    checkIn: eb.checkIn.toISOString(),
+    checkOut: eb.checkOut.toISOString(),
+    roomName: eb.room.nameEn,
+    platform: eb.channel.platform,
+  }));
+
   return (
     <div className="animate-fade-in">
       <PageHeader
@@ -196,58 +198,8 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Channel Activity */}
-      <div
-        className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm"
-        style={{ animation: "slide-up 0.4s ease-out 0.4s both" }}
-      >
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-          <h2 className="text-base font-semibold text-gray-900">Channel Activity</h2>
-          <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
-            <Link2 className="h-3 w-3" />
-            External Platforms
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50/80">
-              <tr>
-                <th className="px-3 sm:px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Summary</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Room</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Dates</th>
-                <th className="px-3 sm:px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Platform</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {stats.recentExternal.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-12 text-center text-sm text-gray-300">
-                    No channel bookings yet
-                  </td>
-                </tr>
-              ) : (
-                stats.recentExternal.map((eb) => {
-                  const badge = PLATFORM_BADGE[eb.channel.platform] ?? PLATFORM_BADGE.OTHER;
-                  return (
-                    <tr key={eb.id} className="transition-colors hover:bg-gray-50/50">
-                      <td className="px-3 sm:px-6 py-4">
-                        <span className="font-medium text-gray-900">{eb.summary || "Untitled reservation"}</span>
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 text-gray-500">{eb.room.nameEn}</td>
-                      <td className="px-3 sm:px-6 py-4 text-gray-500 whitespace-nowrap">
-                        {format(new Date(eb.checkIn), "MMM dd")} &ndash; {format(new Date(eb.checkOut), "MMM dd")}
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 text-right">
-                        <span className={`inline-block rounded-md px-2.5 py-1 text-[11px] font-semibold ${badge.cls}`}>
-                          {badge.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="mt-6" style={{ animation: "slide-up 0.4s ease-out 0.4s both" }}>
+        <ChannelActivityTable data={serializedExternal} />
       </div>
     </div>
   );

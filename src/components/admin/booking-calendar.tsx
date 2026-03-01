@@ -260,21 +260,6 @@ export function BookingCalendar() {
           </button>
         </div>
 
-        {/* Room color legend */}
-        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-          <span className="rounded-full bg-gray-100 px-2.5 py-1 font-medium">
-            {events.length} booking{events.length !== 1 ? "s" : ""}
-          </span>
-          {rooms.map((r) => (
-            <div key={r.id} className="flex items-center gap-1.5">
-              <div
-                className="h-2.5 w-2.5 rounded-sm"
-                style={{ backgroundColor: rcMap.get(r.id) }}
-              />
-              <span className="max-w-[120px] truncate">{r.name}</span>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* ─── Month Grid ─── */}
