@@ -35,6 +35,7 @@ docker exec "$CONTAINER" mysqldump \
   -u "$DB_USER" \
   -p"$DB_PASS" \
   --single-transaction \
+  --no-tablespaces \
   --routines \
   --triggers \
   "$DB_NAME" | gzip > "$BACKUP_FILE"
