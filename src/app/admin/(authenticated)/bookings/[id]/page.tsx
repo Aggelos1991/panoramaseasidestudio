@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, User, Mail, BedDouble, Users, CalendarDays, Moon, Phone, Globe, Shield, MessageSquare } from "lucide-react";
 
 type Booking = {
   id: string;
@@ -15,7 +15,6 @@ type Booking = {
   guests: number;
   totalPrice: string;
   status: string;
-  paymentStatus: string;
   guestFirstName: string;
   guestLastName: string;
   guestEmail: string;
@@ -28,12 +27,15 @@ type Booking = {
 };
 
 const STATUS: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-700",
-  CONFIRMED: "bg-green-100 text-green-700",
-  CANCELLED: "bg-red-100 text-red-700",
-  COMPLETED: "bg-blue-100 text-blue-700",
-  NO_SHOW: "bg-gray-100 text-gray-700",
+  CONFIRMED: "bg-emerald-50 text-emerald-700",
+  CANCELLED: "bg-red-50 text-red-600",
 };
+
+function statusLabel(s: string) {
+  if (s === "CONFIRMED") return "Active";
+  if (s === "CANCELLED") return "Cancelled";
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
 
 export default function BookingDetailPage() {
   const params = useParams();
@@ -69,89 +71,106 @@ export default function BookingDetailPage() {
     }
   }
 
-  if (loading) return <div className="py-20 text-center text-gray-400">Loading...</div>;
-  if (!booking) return <div className="py-20 text-center text-gray-400">Booking not found</div>;
+  if (loading) return <div className="flex h-64 items-center justify-center text-sm text-gray-400">Loading...</div>;
+  if (!booking) return <div className="flex h-64 items-center justify-center text-sm text-gray-400">Booking not found</div>;
 
   return (
-    <div className="max-w-3xl">
+    <div className="animate-fade-in max-w-4xl">
       <button
         onClick={() => router.push("/admin/bookings")}
-        className="mb-4 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-gray-600"
       >
-        <ArrowLeft className="h-4 w-4" /> Back
+        <ArrowLeft className="h-4 w-4" /> Back to bookings
       </button>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{booking.referenceNumber}</h1>
-          <p className="text-sm text-gray-500">
-            {format(new Date(booking.createdAt), "MMM dd, yyyy")}
-          </p>
+      {/* Header card */}
+      <div className="rounded-xl bg-gradient-to-r from-deep-blue to-deep-blue-light p-6 text-white shadow-lg">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Booking Reference</p>
+            <h1 className="mt-1 text-2xl font-bold">{booking.referenceNumber}</h1>
+            <p className="mt-1 text-sm text-white/50">
+              Created {format(new Date(booking.createdAt), "MMM dd, yyyy")}
+            </p>
+          </div>
+          <span className={`rounded-lg px-3 py-1.5 text-xs font-bold ${STATUS[booking.status] || "bg-gray-100"}`}>
+            {statusLabel(booking.status)}
+          </span>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS[booking.status] || "bg-gray-100"}`}>
-          {booking.status}
-        </span>
+
+        {/* Quick stats */}
+        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-white/10 pt-5">
+          <div>
+            <p className="text-[11px] text-white/40 uppercase">Total</p>
+            <p className="mt-0.5 text-xl font-bold">&euro;{Number(booking.totalPrice)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-white/40 uppercase">Nights</p>
+            <p className="mt-0.5 text-xl font-bold">{booking.nights}</p>
+          </div>
+        </div>
       </div>
 
-      {/* Info grid */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Info label="Guest" value={`${booking.guestFirstName} ${booking.guestLastName}`} />
-          <Info label="Email" value={booking.guestEmail} />
-          <Info label="Room" value={booking.room.nameEn} />
-          <Info label="Guests" value={`${booking.guests}`} />
-          <Info label="Check-in" value={format(new Date(booking.checkIn), "MMM dd, yyyy")} />
-          <Info label="Check-out" value={format(new Date(booking.checkOut), "MMM dd, yyyy")} />
-          <Info label="Nights" value={`${booking.nights}`} />
-          <Info label="Total" value={`\u20AC${Number(booking.totalPrice)}`} bold />
-          {booking.guestPhone && <Info label="Phone" value={booking.guestPhone} />}
-          {booking.guestCountry && <Info label="Country" value={booking.guestCountry} />}
-          <Info label="Payment" value={booking.paymentStatus} />
-          <Info label="GDPR Consent" value={booking.gdprConsent ? "Yes" : "No"} />
-        </div>
-        {booking.specialRequests && (
-          <div className="mt-4 border-t pt-4">
-            <p className="text-xs font-medium text-gray-400 uppercase">Special Requests</p>
-            <p className="mt-1 text-sm text-gray-700">{booking.specialRequests}</p>
+      {/* Info cards */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        {/* Guest info */}
+        <div className="rounded-xl bg-white p-5 shadow-sm">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Guest Information</h3>
+          <div className="mt-4 space-y-3.5">
+            <InfoRow icon={User} label="Name" value={`${booking.guestFirstName} ${booking.guestLastName}`} />
+            <InfoRow icon={Mail} label="Email" value={booking.guestEmail} />
+            {booking.guestPhone && <InfoRow icon={Phone} label="Phone" value={booking.guestPhone} />}
+            {booking.guestCountry && <InfoRow icon={Globe} label="Country" value={booking.guestCountry} />}
+            <InfoRow icon={Shield} label="GDPR Consent" value={booking.gdprConsent ? "Given" : "Not given"} />
           </div>
-        )}
+        </div>
+
+        {/* Stay info */}
+        <div className="rounded-xl bg-white p-5 shadow-sm">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Stay Details</h3>
+          <div className="mt-4 space-y-3.5">
+            <InfoRow icon={BedDouble} label="Room" value={booking.room.nameEn} />
+            <InfoRow icon={Users} label="Guests" value={`${booking.guests}`} />
+            <InfoRow icon={CalendarDays} label="Check-in" value={format(new Date(booking.checkIn), "EEE, MMM dd yyyy")} />
+            <InfoRow icon={CalendarDays} label="Check-out" value={format(new Date(booking.checkOut), "EEE, MMM dd yyyy")} />
+            <InfoRow icon={Moon} label="Nights" value={`${booking.nights}`} />
+          </div>
+        </div>
       </div>
+
+      {/* Special requests */}
+      {booking.specialRequests && (
+        <div className="mt-4 rounded-xl bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-gray-400" />
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Special Requests</h3>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-gray-600">{booking.specialRequests}</p>
+        </div>
+      )}
 
       {/* Actions */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {booking.status === "PENDING" && (
-          <Button onClick={() => update({ status: "CONFIRMED" })} disabled={updating}>
-            Confirm
-          </Button>
-        )}
-        {booking.status === "CONFIRMED" && (
-          <Button variant="secondary" onClick={() => update({ status: "COMPLETED" })} disabled={updating}>
-            Complete
-          </Button>
-        )}
-        {booking.paymentStatus === "UNPAID" && ["PENDING", "CONFIRMED"].includes(booking.status) && (
-          <Button variant="secondary" onClick={() => update({ paymentStatus: "PAID" })} disabled={updating}>
-            Mark Paid
-          </Button>
-        )}
-        {["PENDING", "CONFIRMED"].includes(booking.status) && (
+      {booking.status === "CONFIRMED" && (
+        <div className="mt-6 flex flex-wrap gap-2">
           <Button variant="danger" onClick={() => update({ status: "CANCELLED" })} disabled={updating}>
-            Cancel
+            Cancel Booking
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Info({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div>
-      <p className="text-xs font-medium text-gray-400 uppercase">{label}</p>
-      <p className={`mt-0.5 text-sm ${bold ? "text-lg font-bold text-terracotta" : "text-gray-900"}`}>
-        {value}
-      </p>
+    <div className="flex items-center gap-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50">
+        <Icon className="h-3.5 w-3.5 text-gray-400" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] text-gray-400">{label}</p>
+        <p className="text-sm font-medium text-gray-900 truncate">{value}</p>
+      </div>
     </div>
   );
 }

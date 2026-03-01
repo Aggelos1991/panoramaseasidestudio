@@ -7,8 +7,15 @@ import { FALLBACK_ROOMS, AMENITY_LABELS, AMENITY_ICONS, HOTEL_IMAGES } from "@/l
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { RoomGallery } from "@/components/rooms/room-gallery";
+import { BreadcrumbJsonLd, HotelRoomJsonLd } from "@/components/seo/json-ld";
 import { Users, Maximize, BedDouble, ArrowRight } from "lucide-react";
 import * as LucideIcons from "lucide-react";
+
+const BASE_URL = "https://panoramaseasidekos.com";
+
+function localeUrl(path: string, locale: string) {
+  return locale === "en" ? `${BASE_URL}${path}` : `${BASE_URL}/${locale}${path}`;
+}
 
 // ─── Build fallback detail data from FALLBACK_ROOMS ─────────
 
@@ -122,9 +129,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const name = getLocalizedField(room, "name", locale);
   const description = getLocalizedField(room, "desc", locale);
 
+  const roomPath = `/rooms/${slug}`;
+
   return {
-    title: `${name} — Panorama Seaside Studios`,
+    title: name,
     description: description.slice(0, 160),
+    alternates: {
+      canonical: localeUrl(roomPath, locale),
+      languages: {
+        en: `${BASE_URL}${roomPath}`,
+        el: `${BASE_URL}/el${roomPath}`,
+        de: `${BASE_URL}/de${roomPath}`,
+      },
+    },
+    openGraph: {
+      title: `${name} — Panorama Seaside Studios`,
+      description: description.slice(0, 160),
+      url: localeUrl(roomPath, locale),
+      images: room.images[0]?.url
+        ? [{ url: room.images[0].url, width: 1200, height: 630, alt: name }]
+        : undefined,
+    },
   };
 }
 
@@ -153,7 +178,27 @@ export default async function RoomDetailPage({ params }: PageProps) {
   const name = getLocalizedField(room, "name", locale);
   const description = getLocalizedField(room, "desc", locale);
 
+  const roomUrl = localeUrl(`/rooms/${slug}`, locale);
+
   return (
+    <>
+    <BreadcrumbJsonLd
+      items={[
+        { name: "Home", url: localeUrl("/", locale) },
+        { name: t("title"), url: localeUrl("/rooms", locale) },
+        { name, url: roomUrl },
+      ]}
+    />
+    <HotelRoomJsonLd
+      name={name}
+      description={description.slice(0, 300)}
+      capacity={room.capacity}
+      bedType={room.bedType}
+      sizeSqm={room.sizeSqm}
+      basePrice={room.basePrice}
+      image={room.images[0]?.url}
+      url={roomUrl}
+    />
     <section className="bg-cream py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Image Gallery */}
@@ -279,5 +324,6 @@ export default async function RoomDetailPage({ params }: PageProps) {
         </div>
       </div>
     </section>
+    </>
   );
 }

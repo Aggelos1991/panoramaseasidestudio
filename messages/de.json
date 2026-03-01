@@ -92,7 +92,10 @@
     "backToHome": "Zurück zur Startseite",
     "paymentCancelled": "Zahlung Abgebrochen",
     "paymentCancelledDesc": "Ihre Zahlung wurde nicht abgeschlossen. Sie können es erneut versuchen oder uns kontaktieren.",
-    "tryAgain": "Erneut Versuchen"
+    "tryAgain": "Erneut Versuchen",
+    "paymentRedirectNote": "Sie werden zur sicheren Zahlungsseite weitergeleitet, um Ihre Buchung abzuschließen.",
+    "paymentSuccessful": "Zahlung Erfolgreich",
+    "paid": "Bezahlt"
   },
   "gallery": {
     "title": "Fotogalerie",

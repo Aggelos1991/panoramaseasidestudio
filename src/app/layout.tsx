@@ -15,7 +15,12 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Panorama Seaside Studios — Beachfront Accommodation in Mastichari, Kos",
+  metadataBase: new URL("https://panoramaseasidekos.com"),
+  title: {
+    default:
+      "Panorama Seaside Studios — Beachfront Accommodation in Mastichari, Kos",
+    template: "%s | Panorama Seaside Studios",
+  },
   description:
     "Beachfront studios & apartments in Mastichari, Kos Island. Family-run accommodation steps from the beach with sea views, restaurant, and authentic Greek hospitality.",
   keywords: [
@@ -28,7 +33,32 @@ export const metadata: Metadata = {
     "accommodation",
     "holiday",
     "Panorama Seaside",
+    "hotel",
+    "Kos Island",
+    "Greek islands",
+    "sea view",
+    "family hotel",
   ],
+  openGraph: {
+    type: "website",
+    siteName: "Panorama Seaside Studios",
+    locale: "en_US",
+    alternateLocale: ["el_GR", "de_DE"],
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export default function RootLayout({

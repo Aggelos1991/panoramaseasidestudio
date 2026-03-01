@@ -105,7 +105,7 @@ export default function BookingPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch("/api/bookings", {
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -121,13 +121,13 @@ export default function BookingPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to create booking");
+        throw new Error(data.error || "Failed to create checkout");
       }
 
-      const { referenceNumber } = await res.json();
+      const { url } = await res.json();
 
-      // Redirect to success page with reference
-      router.push(`/booking/success?ref=${referenceNumber}`);
+      // Redirect to Stripe Checkout
+      window.location.href = url;
     } catch {
       setSubmitting(false);
       alert("Something went wrong. Please try again.");
@@ -248,10 +248,10 @@ export default function BookingPage() {
                   isLoading={submitting}
                   className="w-full sm:w-auto"
                 >
-                  {t("confirmBooking")}
+                  {t("proceedToPayment")}
                 </Button>
                 <p className="mt-3 text-xs text-gray-400">
-                  {t("confirmBookingNote")}
+                  {t("paymentRedirectNote")}
                 </p>
               </div>
             </div>

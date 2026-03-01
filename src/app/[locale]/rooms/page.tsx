@@ -1,8 +1,43 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { getLocalizedField } from "@/lib/utils";
 import { PLACEHOLDER_IMAGES, FALLBACK_ROOMS } from "@/lib/constants";
 import { RoomCard } from "@/components/rooms/room-card";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+
+const BASE_URL = "https://panoramaseasidekos.com";
+
+function localeUrl(path: string, locale: string) {
+  return locale === "en" ? `${BASE_URL}${path}` : `${BASE_URL}/${locale}${path}`;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations("rooms");
+
+  const title = t("title");
+  const description =
+    "Browse our beachfront studios and apartments in Mastichari, Kos. From sea view studios to double rooms with balconies, find your perfect Greek island retreat.";
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: localeUrl("/rooms", locale),
+      languages: {
+        en: `${BASE_URL}/rooms`,
+        el: `${BASE_URL}/el/rooms`,
+        de: `${BASE_URL}/de/rooms`,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      url: localeUrl("/rooms", locale),
+    },
+  };
+}
 
 type RoomListItem = {
   slug: string;
@@ -71,6 +106,13 @@ export default async function RoomsPage({ params }: Props) {
   }
 
   return (
+    <>
+    <BreadcrumbJsonLd
+      items={[
+        { name: "Home", url: localeUrl("/", locale) },
+        { name: t("title"), url: localeUrl("/rooms", locale) },
+      ]}
+    />
     <section className="bg-cream py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
@@ -88,20 +130,22 @@ export default async function RoomsPage({ params }: Props) {
         </div>
 
         {/* Room Cards Grid */}
-        <div className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 flex flex-wrap justify-center gap-4">
           {rooms.map((room) => (
-            <RoomCard
-              key={room.slug}
-              slug={room.slug}
-              name={getLocalizedField(room, "name", locale)}
-              capacity={room.capacity}
-              sizeSqm={room.sizeSqm}
-              basePrice={room.basePrice}
-              imageUrl={room.primaryImage}
-            />
+            <div key={room.slug} className="w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)]">
+              <RoomCard
+                slug={room.slug}
+                name={getLocalizedField(room, "name", locale)}
+                capacity={room.capacity}
+                sizeSqm={room.sizeSqm}
+                basePrice={room.basePrice}
+                imageUrl={room.primaryImage}
+              />
+            </div>
           ))}
         </div>
       </div>
     </section>
+    </>
   );
 }

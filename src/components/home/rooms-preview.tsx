@@ -44,12 +44,12 @@ export function RoomsPreview({ rooms }: { rooms: RoomPreview[] }) {
         </div>
 
         {/* Room Cards — Glassmorphism */}
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 flex flex-wrap justify-center gap-4">
           {rooms.map((room, i) => (
             <Link
               key={room.slug}
               href={`/rooms/${room.slug}`}
-              className={`group overflow-hidden rounded-2xl glass-gold card-hover transition-all duration-700 ${
+              className={`group flex w-full flex-col overflow-hidden rounded-2xl glass-gold card-hover sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)] transition-all duration-700 ${
                 isVisible
                   ? "opacity-100 translate-y-0"
                   : "opacity-0 translate-y-8"
@@ -62,29 +62,29 @@ export function RoomsPreview({ rooms }: { rooms: RoomPreview[] }) {
                   alt={getLocalizedField(room, "name", locale)}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-110"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 <div className="absolute bottom-3 right-3 rounded-lg bg-terracotta/90 backdrop-blur-sm px-3 py-1.5 text-sm font-semibold text-white shadow-md">
                   {t("from")} &euro;{room.basePrice}
                 </div>
               </div>
-              <div className="p-5">
-                <h3 className="font-serif text-lg font-semibold text-deep-blue">
+              <div className="flex flex-1 flex-col p-4">
+                <h3 className="font-serif text-base font-semibold text-deep-blue">
                   {getLocalizedField(room, "name", locale)}
                 </h3>
-                <div className="mt-3 flex items-center gap-4 text-sm text-gray-500">
-                  <span className="flex items-center gap-1.5">
-                    <Users className="h-4 w-4" />
+                <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
                     {room.capacity}
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <Maximize className="h-4 w-4" />
+                  <span className="flex items-center gap-1">
+                    <Maximize className="h-3.5 w-3.5" />
                     {room.sizeSqm} m&sup2;
                   </span>
                 </div>
-                <div className="mt-4 flex items-center gap-1 text-sm font-medium text-terracotta transition-all duration-300 group-hover:translate-x-1">
-                  {t("viewDetails")} <ArrowRight className="h-4 w-4" />
+                <div className="mt-auto pt-3 flex items-center gap-1 text-xs font-medium text-terracotta transition-all duration-300 group-hover:translate-x-1">
+                  {t("viewDetails")} <ArrowRight className="h-3.5 w-3.5" />
                 </div>
               </div>
             </Link>

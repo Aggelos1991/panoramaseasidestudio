@@ -1,13 +1,33 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { ContactForm } from "@/components/contact/contact-form";
 import { MapEmbed } from "@/components/contact/map-embed";
 
-export async function generateMetadata() {
+const BASE_URL = "https://panoramaseasidekos.com";
+
+type PageProps = { params: Promise<{ locale: string }> };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
   const t = await getTranslations("contact");
+
+  const title = t("title");
+  const description = t("subtitle").slice(0, 160);
+  const url = locale === "en" ? `${BASE_URL}/contact` : `${BASE_URL}/${locale}/contact`;
+
   return {
-    title: t("title"),
-    description: t("subtitle"),
+    title,
+    description,
+    alternates: {
+      canonical: url,
+      languages: {
+        en: `${BASE_URL}/contact`,
+        el: `${BASE_URL}/el/contact`,
+        de: `${BASE_URL}/de/contact`,
+      },
+    },
+    openGraph: { title, description, url },
   };
 }
 

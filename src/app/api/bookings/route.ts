@@ -30,8 +30,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const checkInDate = parseISO(checkIn);
-    const checkOutDate = parseISO(checkOut);
+    // Ensure dates are parsed as UTC midnight to match DB storage
+    const checkInDate = new Date(checkIn + "T00:00:00.000Z");
+    const checkOutDate = new Date(checkOut + "T00:00:00.000Z");
 
     // For fallback rooms (no DB), create a lightweight response
     if (roomId.startsWith("fallback-")) {
@@ -52,16 +53,25 @@ export async function POST(request: NextRequest) {
         throw new Error("Room not found");
       }
 
-      const overlappingBookings = await tx.booking.count({
-        where: {
-          roomId,
-          status: { in: ["PENDING", "CONFIRMED"] },
-          checkIn: { lt: checkOutDate },
-          checkOut: { gt: checkInDate },
-        },
-      });
+      const [overlappingBookings, overlappingExternal] = await Promise.all([
+        tx.booking.count({
+          where: {
+            roomId,
+            status: "CONFIRMED",
+            checkIn: { lt: checkOutDate },
+            checkOut: { gt: checkInDate },
+          },
+        }),
+        tx.externalBooking.count({
+          where: {
+            roomId,
+            checkIn: { lt: checkOutDate },
+            checkOut: { gt: checkInDate },
+          },
+        }),
+      ]);
 
-      if (overlappingBookings >= room.totalUnits) {
+      if (overlappingBookings + overlappingExternal >= room.totalUnits) {
         throw new Error("Room no longer available");
       }
 
@@ -108,8 +118,8 @@ export async function POST(request: NextRequest) {
           gdprConsent: true,
           gdprConsentAt: new Date(),
           locale,
-          status: "PENDING",
-          paymentStatus: "UNPAID",
+          status: "CONFIRMED",
+          paymentStatus: "PAID",
         },
       });
     });

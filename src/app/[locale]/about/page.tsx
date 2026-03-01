@@ -1,12 +1,32 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Image from "next/image";
 import { PLACEHOLDER_IMAGES } from "@/lib/constants";
 
-export async function generateMetadata() {
+const BASE_URL = "https://panoramaseasidekos.com";
+
+type PageProps = { params: Promise<{ locale: string }> };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
   const t = await getTranslations("about");
+
+  const title = t("pageTitle");
+  const description = t("story").slice(0, 160);
+  const url = locale === "en" ? `${BASE_URL}/about` : `${BASE_URL}/${locale}/about`;
+
   return {
-    title: t("pageTitle"),
-    description: t("story"),
+    title,
+    description,
+    alternates: {
+      canonical: url,
+      languages: {
+        en: `${BASE_URL}/about`,
+        el: `${BASE_URL}/el/about`,
+        de: `${BASE_URL}/de/about`,
+      },
+    },
+    openGraph: { title, description, url },
   };
 }
 

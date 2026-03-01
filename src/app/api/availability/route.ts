@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { differenceInDays, eachDayOfInterval, parseISO } from "date-fns";
 import { getLocalizedField } from "@/lib/utils";
 import { HOTEL_IMAGES, FALLBACK_ROOMS } from "@/lib/constants";
+import { isInClosedSeason } from "@/lib/closed-season";
 
 const PHOTO_BASE =
   "https://panoramastudiosmastichari.hotelskosisland.com/data/Photos/OriginalPhoto";
@@ -37,8 +38,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const checkInDate = parseISO(checkIn);
-    const checkOutDate = parseISO(checkOut);
+    // Ensure dates are parsed as UTC midnight to match DB storage
+    const checkInDate = new Date(checkIn + "T00:00:00.000Z");
+    const checkOutDate = new Date(checkOut + "T00:00:00.000Z");
     const nights = differenceInDays(checkOutDate, checkInDate);
 
     if (nights <= 0) {
@@ -46,6 +48,11 @@ export async function POST(request: NextRequest) {
         { error: "Check-out must be after check-in" },
         { status: 400 },
       );
+    }
+
+    // Rooms closed Nov–Mar
+    if (isInClosedSeason(checkInDate, checkOutDate)) {
+      return NextResponse.json({ rooms: [] });
     }
 
     let rooms;
@@ -94,16 +101,25 @@ export async function POST(request: NextRequest) {
     for (const room of rooms) {
       if (room.blockedDates.length > 0) continue;
 
-      const overlappingBookings = await prisma.booking.count({
-        where: {
-          roomId: room.id,
-          status: { in: ["PENDING", "CONFIRMED"] },
-          checkIn: { lt: checkOutDate },
-          checkOut: { gt: checkInDate },
-        },
-      });
+      const [overlappingBookings, overlappingExternal] = await Promise.all([
+        prisma.booking.count({
+          where: {
+            roomId: room.id,
+            status: "CONFIRMED",
+            checkIn: { lt: checkOutDate },
+            checkOut: { gt: checkInDate },
+          },
+        }),
+        prisma.externalBooking.count({
+          where: {
+            roomId: room.id,
+            checkIn: { lt: checkOutDate },
+            checkOut: { gt: checkInDate },
+          },
+        }),
+      ]);
 
-      if (overlappingBookings >= room.totalUnits) continue;
+      if (overlappingBookings + overlappingExternal >= room.totalUnits) continue;
 
       const stayDays = eachDayOfInterval({
         start: checkInDate,
@@ -112,9 +128,21 @@ export async function POST(request: NextRequest) {
 
       let totalPrice = 0;
       for (const day of stayDays) {
-        const applicableRule = room.pricingRules.find(
+        const dayOfWeek = day.getDay(); // 0=Sun..6=Sat
+
+        const matchingRules = room.pricingRules.filter(
           (rule) => day >= rule.startDate && day <= rule.endDate,
         );
+
+        // Day-specific rule takes priority over general rule
+        const daySpecificRule = matchingRules.find(
+          (rule) => rule.daysOfWeek.length > 0 && rule.daysOfWeek.includes(dayOfWeek),
+        );
+        const generalRule = matchingRules.find(
+          (rule) => rule.daysOfWeek.length === 0,
+        );
+
+        const applicableRule = daySpecificRule || generalRule;
         totalPrice += applicableRule
           ? Number(applicableRule.pricePerNight)
           : Number(room.basePrice);

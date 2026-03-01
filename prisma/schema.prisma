@@ -30,10 +30,12 @@ model Room {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  images       RoomImage[]
-  bookings     Booking[]
-  pricingRules PricingRule[]
-  blockedDates BlockedDate[]
+  images           RoomImage[]
+  bookings         Booking[]
+  pricingRules     PricingRule[]
+  blockedDates     BlockedDate[]
+  channels         Channel[]
+  externalBookings ExternalBooking[]
 
   @@index([slug])
   @@index([isActive])
@@ -62,6 +64,7 @@ model PricingRule {
   startDate     DateTime @db.Date
   endDate       DateTime @db.Date
   pricePerNight Decimal  @db.Decimal(10, 2)
+  daysOfWeek    Int[]    // e.g. [5, 6] for Fri+Sat. Empty = all days. JS getDay(): 0=Sun..6=Sat
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -92,7 +95,7 @@ model Booking {
   guests          Int
   totalPrice      Decimal       @db.Decimal(10, 2)
   currency        String        @default("EUR")
-  status          BookingStatus @default(PENDING)
+  status          BookingStatus @default(CONFIRMED)
 
   guestFirstName  String
   guestLastName   String
@@ -106,7 +109,7 @@ model Booking {
   gdprConsentAt   DateTime?
 
   // Payment tracking (manual / external)
-  paymentStatus   PaymentStatus @default(UNPAID)
+  paymentStatus   PaymentStatus @default(PAID)
   paymentMethod   String?
   paymentNotes    String?       @db.Text
 
@@ -125,18 +128,13 @@ model Booking {
 }
 
 enum BookingStatus {
-  PENDING
   CONFIRMED
   CANCELLED
-  COMPLETED
-  NO_SHOW
 }
 
 enum PaymentStatus {
-  UNPAID
   PAID
   REFUNDED
-  PARTIALLY_REFUNDED
 }
 
 // ─── Admin ──────────────────────────────────────────────────
@@ -194,4 +192,51 @@ model GdprDeletionRequest {
 
   @@index([email])
   @@index([status])
+}
+
+// ─── Channel Manager ────────────────────────────────────────
+
+model Channel {
+  id             String    @id @default(cuid())
+  name           String
+  platform       Platform
+  icalImportUrl  String?
+  roomId         String
+  room           Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  color          String    @default("#6366f1") // hex color for calendar
+  isActive       Boolean   @default(true)
+  lastSyncAt     DateTime?
+  lastSyncStatus String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  externalBookings ExternalBooking[]
+
+  @@index([roomId])
+  @@index([isActive])
+}
+
+model ExternalBooking {
+  id        String   @id @default(cuid())
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  uid       String   // iCal event UID for deduplication
+  summary   String?  // event title from iCal
+  checkIn   DateTime @db.Date
+  checkOut  DateTime @db.Date
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([channelId, uid])
+  @@index([roomId, checkIn, checkOut])
+}
+
+enum Platform {
+  BOOKING_COM
+  EXPEDIA
+  AIRBNB
+  VRBO
+  OTHER
 }

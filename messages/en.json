@@ -92,7 +92,10 @@
     "backToHome": "Back to Home",
     "paymentCancelled": "Payment Cancelled",
     "paymentCancelledDesc": "Your payment was not completed. You can try again or contact us for assistance.",
-    "tryAgain": "Try Again"
+    "tryAgain": "Try Again",
+    "paymentRedirectNote": "You will be redirected to our secure payment page to complete your booking.",
+    "paymentSuccessful": "Payment Successful",
+    "paid": "Paid"
   },
   "gallery": {
     "title": "Photo Gallery",
