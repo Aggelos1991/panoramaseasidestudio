@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { getLocalizedField } from "@/lib/utils";
-import { FALLBACK_ROOMS, AMENITY_LABELS, AMENITY_ICONS, HOTEL_IMAGES } from "@/lib/constants";
+import { AMENITY_LABELS, AMENITY_ICONS } from "@/lib/constants";
 import { parseStringArray } from "@/lib/json-array";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,6 @@ const BASE_URL = "https://panoramaseasidekos.com";
 function localeUrl(path: string, locale: string) {
   return locale === "en" ? `${BASE_URL}${path}` : `${BASE_URL}/${locale}${path}`;
 }
-
-// ─── Build fallback detail data from FALLBACK_ROOMS ─────────
 
 type RoomDetail = {
   slug: string;
@@ -35,37 +33,6 @@ type RoomDetail = {
   amenities: string[];
   images: { url: string; alt?: string }[];
 };
-
-function getFallbackRoom(slug: string): RoomDetail | null {
-  const room = FALLBACK_ROOMS.find((r) => r.slug === slug);
-  if (!room) return null;
-
-  return {
-    slug: room.slug,
-    nameEn: room.nameEn,
-    nameEl: room.nameEl,
-    nameDe: room.nameDe,
-    descEn: getDefaultDesc(room.nameEn),
-    descEl: getDefaultDesc(room.nameEl),
-    descDe: getDefaultDesc(room.nameDe),
-    capacity: room.capacity,
-    bedType: room.bedType,
-    sizeSqm: room.sizeSqm,
-    basePrice: room.basePrice,
-    amenities: room.amenities,
-    images: [
-      { url: room.primaryImage, alt: room.nameEn },
-      ...Object.values(HOTEL_IMAGES.gallery)
-        .filter((url) => url !== room.primaryImage)
-        .slice(0, 2)
-        .map((url) => ({ url, alt: `${room.nameEn} - view` })),
-    ],
-  };
-}
-
-function getDefaultDesc(name: string): string {
-  return `Welcome to the ${name} at Panorama Seaside Studios. Enjoy your stay in our comfortable accommodation, just steps from Mastichari Beach on Kos Island. Each room features modern amenities and a private balcony for a relaxing Greek island holiday.`;
-}
 
 // ─── Data fetching ──────────────────────────────────────────
 
@@ -120,7 +87,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     room = await getRoom(slug);
   } catch {
-    room = getFallbackRoom(slug);
+    // DB error
   }
 
   if (!room) {
@@ -164,12 +131,7 @@ export default async function RoomDetailPage({ params }: PageProps) {
   try {
     room = await getRoom(slug);
   } catch {
-    room = getFallbackRoom(slug);
-  }
-
-  // If DB returned nothing, also try fallback
-  if (!room) {
-    room = getFallbackRoom(slug);
+    // DB error
   }
 
   if (!room) {

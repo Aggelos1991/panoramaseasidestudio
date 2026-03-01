@@ -9,7 +9,6 @@ import { Testimonials } from "@/components/home/testimonials";
 import { CTASection } from "@/components/home/cta-section";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { prisma } from "@/lib/prisma";
-import { FALLBACK_ROOMS } from "@/lib/constants";
 
 const BASE_URL = "https://panoramaseasidekos.com";
 
@@ -93,17 +92,7 @@ export default async function HomePage({ params }: PageProps) {
   try {
     rooms = await getRooms();
   } catch {
-    // DB not connected — use real hotel data as fallback
-    rooms = FALLBACK_ROOMS.map((r) => ({
-      slug: r.slug,
-      nameEn: r.nameEn,
-      nameEl: r.nameEl,
-      nameDe: r.nameDe,
-      capacity: r.capacity,
-      sizeSqm: r.sizeSqm,
-      basePrice: r.basePrice,
-      primaryImage: r.primaryImage,
-    }));
+    rooms = [];
   }
 
   return (

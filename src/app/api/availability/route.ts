@@ -1,31 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { differenceInDays, eachDayOfInterval, parseISO } from "date-fns";
+import { differenceInDays, eachDayOfInterval } from "date-fns";
 import { getLocalizedField } from "@/lib/utils";
-import { HOTEL_IMAGES, FALLBACK_ROOMS } from "@/lib/constants";
+import { HOTEL_IMAGES } from "@/lib/constants";
 import { isInClosedSeason } from "@/lib/closed-season";
 import { parseStringArray, parseIntArray } from "@/lib/json-array";
 
 const PHOTO_BASE =
   "https://panoramastudiosmastichari.hotelskosisland.com/data/Photos/OriginalPhoto";
-
-function getFallbackRooms(nights: number, guests: number, locale: string) {
-  return FALLBACK_ROOMS
-    .filter((room) => room.capacity >= guests)
-    .map((room) => ({
-      id: `fallback-${room.slug}`,
-      slug: room.slug,
-      name: getLocalizedField(room, "name", locale),
-      capacity: room.capacity,
-      sizeSqm: room.sizeSqm,
-      bedType: room.bedType,
-      pricePerNight: room.basePrice,
-      totalPrice: room.basePrice * nights,
-      nights,
-      imageUrl: room.primaryImage,
-      amenities: room.amenities,
-    }));
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,46 +41,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ rooms: [] });
     }
 
-    let rooms;
-    try {
-      rooms = await prisma.room.findMany({
-        where: {
-          isActive: true,
-          capacity: { gte: guests },
+    const rooms = await prisma.room.findMany({
+      where: {
+        isActive: true,
+        capacity: { gte: guests },
+      },
+      include: {
+        images: {
+          where: { isPrimary: true },
+          take: 1,
         },
-        include: {
-          images: {
-            where: { isPrimary: true },
-            take: 1,
+        pricingRules: {
+          where: {
+            startDate: { lte: checkOutDate },
+            endDate: { gte: checkInDate },
           },
-          pricingRules: {
-            where: {
-              startDate: { lte: checkOutDate },
-              endDate: { gte: checkInDate },
-            },
-          },
-          blockedDates: {
-            where: {
-              date: {
-                gte: checkInDate,
-                lt: checkOutDate,
-              },
+        },
+        blockedDates: {
+          where: {
+            date: {
+              gte: checkInDate,
+              lt: checkOutDate,
             },
           },
         },
-        orderBy: { sortOrder: "asc" },
-      });
-    } catch {
-      return NextResponse.json({
-        rooms: getFallbackRooms(nights, guests, locale),
-      });
-    }
-
-    if (rooms.length === 0) {
-      return NextResponse.json({
-        rooms: getFallbackRooms(nights, guests, locale),
-      });
-    }
+      },
+      orderBy: { sortOrder: "asc" },
+    });
 
     const availableRooms = [];
 

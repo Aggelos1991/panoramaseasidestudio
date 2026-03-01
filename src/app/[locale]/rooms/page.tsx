@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { getLocalizedField } from "@/lib/utils";
-import { PLACEHOLDER_IMAGES, FALLBACK_ROOMS } from "@/lib/constants";
+import { PLACEHOLDER_IMAGES } from "@/lib/constants";
 import { RoomCard } from "@/components/rooms/room-card";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
@@ -50,17 +50,6 @@ type RoomListItem = {
   primaryImage: string;
 };
 
-const PLACEHOLDER_ROOM_LIST: RoomListItem[] = FALLBACK_ROOMS.map((r) => ({
-  slug: r.slug,
-  nameEn: r.nameEn,
-  nameEl: r.nameEl,
-  nameDe: r.nameDe,
-  capacity: r.capacity,
-  sizeSqm: r.sizeSqm,
-  basePrice: r.basePrice,
-  primaryImage: r.primaryImage,
-}));
-
 async function getRooms(): Promise<RoomListItem[]> {
   const rooms = await prisma.room.findMany({
     where: { isActive: true },
@@ -102,7 +91,7 @@ export default async function RoomsPage({ params }: Props) {
   try {
     rooms = await getRooms();
   } catch {
-    rooms = PLACEHOLDER_ROOM_LIST;
+    rooms = [];
   }
 
   return (

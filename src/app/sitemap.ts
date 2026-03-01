@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
-import { FALLBACK_ROOMS } from "@/lib/constants";
 
 const BASE_URL = "https://panoramaseasidekos.com";
 
@@ -14,7 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
     roomSlugs = rooms.map((r) => r.slug);
   } catch {
-    roomSlugs = FALLBACK_ROOMS.map((r) => r.slug);
+    roomSlugs = [];
   }
 
   const locales = ["en", "el", "de"] as const;

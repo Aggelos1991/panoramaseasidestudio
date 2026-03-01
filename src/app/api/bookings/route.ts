@@ -36,15 +36,6 @@ export async function POST(request: NextRequest) {
     const checkInDate = new Date(ciStr + "T00:00:00.000Z");
     const checkOutDate = new Date(coStr + "T00:00:00.000Z");
 
-    // For fallback rooms (no DB), create a lightweight response
-    if (roomId.startsWith("fallback-")) {
-      const referenceNumber = generateReferenceNumber();
-      return NextResponse.json({
-        bookingId: `pending-${referenceNumber}`,
-        referenceNumber,
-      });
-    }
-
     // Server-side price calculation — never trust client-submitted prices
     const { totalPrice, nights } = await calculateStayPrice(
       roomId,
