@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseStringArray, toJsonArray } from "@/lib/json-array";
 
 export async function GET(
   _request: NextRequest,
@@ -19,7 +20,10 @@ export async function GET(
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
-    return NextResponse.json(room);
+    return NextResponse.json({
+      ...room,
+      amenities: parseStringArray(room.amenities),
+    });
   } catch (error) {
     console.error("Room fetch error:", error);
     return NextResponse.json(
@@ -38,11 +42,17 @@ export async function PATCH(
     const body = await request.json();
 
     // Separate images from room data
-    const { images, ...roomData } = body;
+    const { images, amenities, ...roomData } = body;
+
+    // Convert amenities array to JSON string for MySQL storage
+    const data = {
+      ...roomData,
+      ...(amenities !== undefined ? { amenities: toJsonArray(amenities) } : {}),
+    };
 
     const room = await prisma.room.update({
       where: { id },
-      data: roomData,
+      data,
     });
 
     // If images provided, replace all images
@@ -68,7 +78,10 @@ export async function PATCH(
       include: { images: { orderBy: { sortOrder: "asc" } } },
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(updated ? {
+      ...updated,
+      amenities: parseStringArray(updated.amenities),
+    } : updated);
   } catch (error) {
     console.error("Room update error:", error);
     return NextResponse.json(

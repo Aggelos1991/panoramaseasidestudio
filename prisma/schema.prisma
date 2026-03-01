@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_DATABASE_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 // ─── Room Types ─────────────────────────────────────────────
@@ -24,7 +23,7 @@ model Room {
   sizeSqm     Int
   basePrice   Decimal  @db.Decimal(10, 2)
   totalUnits  Int      @default(1)
-  amenities   String[]
+  amenities   String   @default("[]") @db.Text // JSON array stored as text
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -64,7 +63,7 @@ model PricingRule {
   startDate     DateTime @db.Date
   endDate       DateTime @db.Date
   pricePerNight Decimal  @db.Decimal(10, 2)
-  daysOfWeek    Int[]    // e.g. [5, 6] for Fri+Sat. Empty = all days. JS getDay(): 0=Sun..6=Sat
+  daysOfWeek    String   @default("[]") @db.Text // JSON array of ints e.g. [5,6] for Fri+Sat
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -200,7 +199,7 @@ model Channel {
   id             String    @id @default(cuid())
   name           String
   platform       Platform
-  icalImportUrl  String?
+  icalImportUrl  String?   @db.Text
   roomId         String
   room           Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
   color          String    @default("#6366f1") // hex color for calendar
@@ -222,7 +221,7 @@ model ExternalBooking {
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   roomId    String
   room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  uid       String   // iCal event UID for deduplication
+  uid       String   @db.VarChar(512) // iCal event UID for deduplication
   summary   String?  // event title from iCal
   checkIn   DateTime @db.Date
   checkOut  DateTime @db.Date

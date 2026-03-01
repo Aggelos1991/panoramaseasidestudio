@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { getLocalizedField } from "@/lib/utils";
 import { FALLBACK_ROOMS, AMENITY_LABELS, AMENITY_ICONS, HOTEL_IMAGES } from "@/lib/constants";
+import { parseStringArray } from "@/lib/json-array";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { RoomGallery } from "@/components/rooms/room-gallery";
@@ -92,7 +93,7 @@ async function getRoom(slug: string) {
     bedType: room.bedType,
     sizeSqm: room.sizeSqm,
     basePrice: Number(room.basePrice),
-    amenities: room.amenities,
+    amenities: parseStringArray(room.amenities),
     images: room.images.map((img) => ({ url: img.url, alt: img.alt ?? undefined })),
   };
 }

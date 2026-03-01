@@ -37,9 +37,9 @@ async function main() {
       sizeSqm: 25,
       basePrice: 65,
       totalUnits: 2,
-      amenities: [
+      amenities: JSON.stringify([
         "wifi", "ac", "tv", "balcony", "fridge", "hairdryer", "towels", "cleaning", "safe",
-      ],
+      ]),
       sortOrder: 1,
       images: [
         {
@@ -72,9 +72,9 @@ async function main() {
       sizeSqm: 28,
       basePrice: 55,
       totalUnits: 2,
-      amenities: [
+      amenities: JSON.stringify([
         "wifi", "ac", "kitchen", "tv", "balcony", "fridge", "kettle", "hairdryer", "towels", "cleaning",
-      ],
+      ]),
       sortOrder: 2,
       images: [
         {
@@ -107,9 +107,9 @@ async function main() {
       sizeSqm: 28,
       basePrice: 70,
       totalUnits: 2,
-      amenities: [
+      amenities: JSON.stringify([
         "wifi", "ac", "kitchen", "tv", "balcony", "sea_view", "beach", "fridge", "kettle", "hairdryer", "towels", "cleaning",
-      ],
+      ]),
       sortOrder: 3,
       images: [
         {
@@ -142,9 +142,9 @@ async function main() {
       sizeSqm: 22,
       basePrice: 60,
       totalUnits: 2,
-      amenities: [
+      amenities: JSON.stringify([
         "wifi", "ac", "tv", "balcony", "sea_view", "fridge", "hairdryer", "towels", "cleaning",
-      ],
+      ]),
       sortOrder: 4,
       images: [
         {
@@ -177,9 +177,9 @@ async function main() {
       sizeSqm: 20,
       basePrice: 50,
       totalUnits: 1,
-      amenities: [
+      amenities: JSON.stringify([
         "wifi", "ac", "tv", "balcony", "fridge", "hairdryer", "towels", "cleaning",
-      ],
+      ]),
       sortOrder: 5,
       images: [
         {

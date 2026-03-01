@@ -4,6 +4,7 @@ import { differenceInDays, eachDayOfInterval, parseISO } from "date-fns";
 import { getLocalizedField } from "@/lib/utils";
 import { HOTEL_IMAGES, FALLBACK_ROOMS } from "@/lib/constants";
 import { isInClosedSeason } from "@/lib/closed-season";
+import { parseStringArray, parseIntArray } from "@/lib/json-array";
 
 const PHOTO_BASE =
   "https://panoramastudiosmastichari.hotelskosisland.com/data/Photos/OriginalPhoto";
@@ -136,10 +137,13 @@ export async function POST(request: NextRequest) {
 
         // Day-specific rule takes priority over general rule
         const daySpecificRule = matchingRules.find(
-          (rule) => rule.daysOfWeek.length > 0 && rule.daysOfWeek.includes(dayOfWeek),
+          (rule) => {
+            const days = parseIntArray(rule.daysOfWeek);
+            return days.length > 0 && days.includes(dayOfWeek);
+          },
         );
         const generalRule = matchingRules.find(
-          (rule) => rule.daysOfWeek.length === 0,
+          (rule) => parseIntArray(rule.daysOfWeek).length === 0,
         );
 
         const applicableRule = daySpecificRule || generalRule;
@@ -164,7 +168,7 @@ export async function POST(request: NextRequest) {
           room.images[0]?.url ||
           HOTEL_IMAGES.rooms[room.slug as keyof typeof HOTEL_IMAGES.rooms] ||
           `${PHOTO_BASE}/16795/1679569/1679569240.JPEG`,
-        amenities: room.amenities,
+        amenities: parseStringArray(room.amenities),
       });
     }
 

@@ -56,7 +56,7 @@ export default async function BookingSuccessPage({ searchParams }: Props) {
       if (session.payment_status === "paid") {
         paymentConfirmed = true;
         // Update booking if still pending
-        if (booking.status === "PENDING") {
+        if (booking.status !== "CONFIRMED") {
           await prisma.booking.update({
             where: { id: booking.id },
             data: {

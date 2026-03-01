@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseIntArray, toJsonArray } from "@/lib/json-array";
 
 // GET — list all pricing rules (optionally filter by roomId)
 export async function GET(request: NextRequest) {
@@ -14,7 +15,12 @@ export async function GET(request: NextRequest) {
       orderBy: [{ startDate: "asc" }],
     });
 
-    return NextResponse.json({ rules });
+    const parsed = rules.map((rule) => ({
+      ...rule,
+      daysOfWeek: parseIntArray(rule.daysOfWeek),
+    }));
+
+    return NextResponse.json({ rules: parsed });
   } catch (error) {
     console.error("Pricing rules GET error:", error);
     return NextResponse.json(
@@ -70,14 +76,19 @@ export async function POST(request: NextRequest) {
         startDate: start,
         endDate: end,
         pricePerNight: Number(pricePerNight),
-        daysOfWeek: daysOfWeek || [],
+        daysOfWeek: toJsonArray(daysOfWeek || []),
       },
       include: {
         room: { select: { nameEn: true, slug: true } },
       },
     });
 
-    return NextResponse.json({ rule }, { status: 201 });
+    return NextResponse.json({
+      rule: {
+        ...rule,
+        daysOfWeek: parseIntArray(rule.daysOfWeek),
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error("Pricing rules POST error:", error);
     return NextResponse.json(

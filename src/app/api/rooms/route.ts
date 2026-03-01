@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseStringArray, toJsonArray } from "@/lib/json-array";
 
 function slugify(text: string): string {
   return text
@@ -20,7 +21,12 @@ export async function GET() {
       orderBy: { sortOrder: "asc" },
     });
 
-    return NextResponse.json(rooms);
+    const parsed = rooms.map((room) => ({
+      ...room,
+      amenities: parseStringArray(room.amenities),
+    }));
+
+    return NextResponse.json(parsed);
   } catch (error) {
     console.error("Rooms fetch error:", error);
     return NextResponse.json(
@@ -81,7 +87,7 @@ export async function POST(request: NextRequest) {
         sizeSqm,
         basePrice,
         totalUnits,
-        amenities,
+        amenities: toJsonArray(amenities),
         sortOrder,
         images: {
           create: images.map(
@@ -97,7 +103,10 @@ export async function POST(request: NextRequest) {
       include: { images: true },
     });
 
-    return NextResponse.json(room, { status: 201 });
+    return NextResponse.json({
+      ...room,
+      amenities: parseStringArray(room.amenities),
+    }, { status: 201 });
   } catch (error) {
     console.error("Room creation error:", error);
     return NextResponse.json(
