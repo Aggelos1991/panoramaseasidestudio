@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { GalleryGrid } from "@/components/gallery/gallery-grid";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 const BASE_URL = "https://panoramaseasidekos.com";
+
+function localeUrl(path: string, locale: string) {
+  return locale === "en" ? `${BASE_URL}${path}` : `${BASE_URL}/${locale}${path}`;
+}
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -11,8 +16,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const t = await getTranslations("gallery");
 
   const title = t("title");
-  const description = t("subtitle").slice(0, 160);
-  const url = locale === "en" ? `${BASE_URL}/gallery` : `${BASE_URL}/${locale}/gallery`;
+  const description =
+    "Browse photos of Panorama Seaside Studios in Mastichari, Kos — beachfront rooms, sea views, restaurant, and the golden sandy beach of Mastichari.";
+  const url = localeUrl("/gallery", locale);
 
   return {
     title,
@@ -25,14 +31,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         de: `${BASE_URL}/de/gallery`,
       },
     },
-    openGraph: { title, description, url },
+    openGraph: { title: `${title} — Panorama Seaside Studios`, description, url },
   };
 }
 
-export default async function GalleryPage() {
+export default async function GalleryPage({ params }: PageProps) {
+  const { locale } = await params;
   const t = await getTranslations("gallery");
 
   return (
+    <>
+    <BreadcrumbJsonLd
+      items={[
+        { name: "Home", url: localeUrl("/", locale) },
+        { name: t("title"), url: localeUrl("/gallery", locale) },
+      ]}
+    />
     <section className="min-h-screen bg-cream pt-24 pb-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
@@ -55,5 +69,6 @@ export default async function GalleryPage() {
         </div>
       </div>
     </section>
+    </>
   );
 }

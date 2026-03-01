@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = t("title");
   const description =
-    "Browse our beachfront studios and apartments in Mastichari, Kos. From sea view studios to double rooms with balconies, find your perfect Greek island retreat.";
+    "Explore beachfront studios & apartments at Panorama Seaside in Mastichari, Kos. Sea view rooms, double rooms with balcony — book your Kos Island getaway from €50/night.";
 
   return {
     title,

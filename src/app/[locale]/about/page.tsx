@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Image from "next/image";
 import { PLACEHOLDER_IMAGES } from "@/lib/constants";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 const BASE_URL = "https://panoramaseasidekos.com";
+
+function localeUrl(path: string, locale: string) {
+  return locale === "en" ? `${BASE_URL}${path}` : `${BASE_URL}/${locale}${path}`;
+}
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -12,8 +17,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const t = await getTranslations("about");
 
   const title = t("pageTitle");
-  const description = t("story").slice(0, 160);
-  const url = locale === "en" ? `${BASE_URL}/about` : `${BASE_URL}/${locale}/about`;
+  const description =
+    "Learn about Panorama Seaside Studios, a family-run beachfront hotel in Mastichari, Kos Island. Over 20 years welcoming guests to our seaside studios and apartments.";
+  const url = localeUrl("/about", locale);
 
   return {
     title,
@@ -26,14 +32,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         de: `${BASE_URL}/de/about`,
       },
     },
-    openGraph: { title, description, url },
+    openGraph: { title: `${title} — Panorama Seaside Studios`, description, url },
   };
 }
 
-export default async function AboutPage() {
+export default async function AboutPage({ params }: PageProps) {
+  const { locale } = await params;
   const t = await getTranslations("about");
 
   return (
+    <>
+    <BreadcrumbJsonLd
+      items={[
+        { name: "Home", url: localeUrl("/", locale) },
+        { name: t("pageTitle"), url: localeUrl("/about", locale) },
+      ]}
+    />
     <div className="min-h-screen">
       {/* Hero Banner */}
       <section className="relative h-[50vh] min-h-[400px]">
@@ -232,5 +246,6 @@ export default async function AboutPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }

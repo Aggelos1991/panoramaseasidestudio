@@ -3,8 +3,13 @@ import { getTranslations } from "next-intl/server";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { ContactForm } from "@/components/contact/contact-form";
 import { MapEmbed } from "@/components/contact/map-embed";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 const BASE_URL = "https://panoramaseasidekos.com";
+
+function localeUrl(path: string, locale: string) {
+  return locale === "en" ? `${BASE_URL}${path}` : `${BASE_URL}/${locale}${path}`;
+}
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -13,8 +18,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const t = await getTranslations("contact");
 
   const title = t("title");
-  const description = t("subtitle").slice(0, 160);
-  const url = locale === "en" ? `${BASE_URL}/contact` : `${BASE_URL}/${locale}/contact`;
+  const description =
+    "Contact Panorama Seaside Studios in Mastichari, Kos. Book your beachfront stay, ask about rooms, or get directions to our seaside hotel on Kos Island, Greece.";
+  const url = localeUrl("/contact", locale);
 
   return {
     title,
@@ -27,14 +33,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         de: `${BASE_URL}/de/contact`,
       },
     },
-    openGraph: { title, description, url },
+    openGraph: { title: `${title} — Panorama Seaside Studios`, description, url },
   };
 }
 
-export default async function ContactPage() {
+export default async function ContactPage({ params }: PageProps) {
+  const { locale } = await params;
   const t = await getTranslations("contact");
 
   return (
+    <>
+    <BreadcrumbJsonLd
+      items={[
+        { name: "Home", url: localeUrl("/", locale) },
+        { name: t("title"), url: localeUrl("/contact", locale) },
+      ]}
+    />
     <section className="min-h-screen bg-cream pt-24 pb-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
@@ -137,5 +151,6 @@ export default async function ContactPage() {
         </div>
       </div>
     </section>
+    </>
   );
 }
