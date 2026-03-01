@@ -55,6 +55,7 @@ services:
       DATABASE_URL: mysql://${MYSQL_USER:-panorama_user}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-panorama}
       JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}

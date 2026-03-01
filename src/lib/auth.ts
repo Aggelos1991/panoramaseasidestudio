@@ -36,7 +36,7 @@ export async function setAdminCookie(token: string) {
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NEXT_PUBLIC_APP_URL?.startsWith("https") ?? false,
+    secure: (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "").startsWith("https"),
     sameSite: "lax",
     maxAge: 60 * 60 * 24, // 24 hours
     path: "/",
