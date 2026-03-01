@@ -23,7 +23,7 @@ model Room {
   sizeSqm     Int
   basePrice   Decimal  @db.Decimal(10, 2)
   totalUnits  Int      @default(1)
-  amenities   String   @default("[]") @db.Text // JSON array stored as text
+  amenities   String   @db.Text // JSON array stored as text
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -63,7 +63,7 @@ model PricingRule {
   startDate     DateTime @db.Date
   endDate       DateTime @db.Date
   pricePerNight Decimal  @db.Decimal(10, 2)
-  daysOfWeek    String   @default("[]") @db.Text // JSON array of ints e.g. [5,6] for Fri+Sat
+  daysOfWeek    String   @db.Text // JSON array of ints e.g. [5,6] for Fri+Sat
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
