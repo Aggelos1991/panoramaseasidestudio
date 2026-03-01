@@ -93,7 +93,12 @@ AllowTcpForwarding no
 ClientAliveInterval 300
 ClientAliveCountMax 2
 EOF
-  systemctl restart sshd
+  # Ubuntu 24.04 uses 'ssh' not 'sshd'
+  if systemctl list-units --type=service | grep -q "sshd.service"; then
+    systemctl restart sshd
+  else
+    systemctl restart ssh
+  fi
   log "SSH hardened: key-only auth, no password login"
 else
   log "SSH already hardened, skipping"
