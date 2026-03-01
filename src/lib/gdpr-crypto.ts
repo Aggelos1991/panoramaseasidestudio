@@ -3,7 +3,9 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypt
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
 const TAG_LENGTH = 16;
-const SALT = "panorama-seaside-salt"; // static salt — key is already secret
+// Salt should be unique per installation. Falls back to a static salt
+// for backward compatibility with existing encrypted data.
+const SALT = process.env.ENCRYPTION_SALT || "panorama-seaside-salt";
 
 function getKey(): Buffer {
   const secret = process.env.ENCRYPTION_KEY;

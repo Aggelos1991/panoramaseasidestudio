@@ -6,9 +6,10 @@ import { sendBookingNotification } from "@/lib/telegram";
 
 // GET — called by Vercel Cron every 15 minutes
 export async function GET(request: NextRequest) {
-  // Verify the request is from Vercel Cron
+  // Verify the request is from cron (secret must be set and match)
+  const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

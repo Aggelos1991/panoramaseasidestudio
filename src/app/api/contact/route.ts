@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         data: {
           name: encrypt(name),
           email: encrypt(email),
-          subject: subject || null,
+          subject: subject ? encrypt(subject) : null,
           message: encrypt(message),
         },
       });

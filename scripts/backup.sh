@@ -31,9 +31,9 @@ BACKUP_FILE="$BACKUP_DIR/panorama_${DATE}.sql.gz"
 
 echo "[BACKUP] Starting MySQL backup: $DATE"
 
-docker exec "$CONTAINER" mysqldump \
+# Use MYSQL_PWD env var to avoid password in process listing
+docker exec -e MYSQL_PWD="$DB_PASS" "$CONTAINER" mysqldump \
   -u "$DB_USER" \
-  -p"$DB_PASS" \
   --single-transaction \
   --no-tablespaces \
   --routines \

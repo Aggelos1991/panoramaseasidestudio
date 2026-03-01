@@ -27,12 +27,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Account lockout: 5 failed attempts = 15 min lock
+    if (admin.lockedUntil && admin.lockedUntil > new Date()) {
+      return NextResponse.json(
+        { error: "Account temporarily locked. Try again later." },
+        { status: 429 },
+      );
+    }
+
     const isValid = await compare(password, admin.password);
     if (!isValid) {
+      const attempts = admin.failedLoginAttempts + 1;
+      const lockout =
+        attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null;
+      await prisma.adminUser.update({
+        where: { id: admin.id },
+        data: { failedLoginAttempts: attempts, lockedUntil: lockout },
+      });
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 },
       );
+    }
+
+    // Reset failed attempts on successful login
+    if (admin.failedLoginAttempts > 0) {
+      await prisma.adminUser.update({
+        where: { id: admin.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null },
+      });
     }
 
     // If 2FA is enabled, require TOTP token or backup code

@@ -52,9 +52,25 @@ export async function PATCH(
     const body = await request.json();
     const { status, paymentStatus } = body;
 
+    const VALID_STATUSES = ["CONFIRMED", "CANCELLED"];
+    const VALID_PAYMENT = ["PAID", "REFUNDED"];
+
     const data: Record<string, unknown> = {};
-    if (status) data.status = status;
-    if (paymentStatus) data.paymentStatus = paymentStatus;
+    if (status) {
+      if (!VALID_STATUSES.includes(status)) {
+        return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      }
+      data.status = status;
+    }
+    if (paymentStatus) {
+      if (!VALID_PAYMENT.includes(paymentStatus)) {
+        return NextResponse.json(
+          { error: "Invalid payment status" },
+          { status: 400 },
+        );
+      }
+      data.paymentStatus = paymentStatus;
+    }
 
     const booking = await prisma.booking.update({
       where: { id },

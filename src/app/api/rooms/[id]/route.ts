@@ -9,11 +9,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    // Only include pricing rules for authenticated admin requests
+    const session = await getAdminSession();
     const room = await prisma.room.findUnique({
       where: { id },
       include: {
         images: { orderBy: { sortOrder: "asc" } },
-        pricingRules: { orderBy: { startDate: "asc" } },
+        ...(session ? { pricingRules: { orderBy: { startDate: "asc" } } } : {}),
       },
     });
 
@@ -47,14 +49,19 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    // Separate images from room data
-    const { images, amenities, ...roomData } = body;
+    // Whitelist allowed fields to prevent mass assignment
+    const { images, amenities } = body;
+    const ALLOWED_FIELDS = [
+      "nameEn", "nameEl", "nameDe", "descEn", "descEl", "descDe",
+      "capacity", "bedType", "sizeSqm", "basePrice", "totalUnits",
+      "sortOrder", "isActive", "slug",
+    ] as const;
 
-    // Convert amenities array to JSON string for MySQL storage
-    const data = {
-      ...roomData,
-      ...(amenities !== undefined ? { amenities: toJsonArray(amenities) } : {}),
-    };
+    const data: Record<string, unknown> = {};
+    for (const field of ALLOWED_FIELDS) {
+      if (body[field] !== undefined) data[field] = body[field];
+    }
+    if (amenities !== undefined) data.amenities = toJsonArray(amenities);
 
     const room = await prisma.room.update({
       where: { id },

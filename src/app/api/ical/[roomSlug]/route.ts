@@ -25,7 +25,6 @@ export async function GET(_request: NextRequest, { params }: Params) {
       },
       select: {
         id: true,
-        referenceNumber: true,
         checkIn: true,
         checkOut: true,
       },
@@ -46,7 +45,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const events = [
       ...bookings.map((b) => ({
         uid: `booking-${b.id}@panoramaseasidekos.com`,
-        summary: `${room.nameEn} - ${b.referenceNumber}`,
+        summary: `${room.nameEn} - Reserved`,
         checkIn: new Date(b.checkIn),
         checkOut: new Date(b.checkOut),
       })),
@@ -63,7 +62,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return new NextResponse(icsContent, {
       headers: {
         "Content-Type": "text/calendar; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${roomSlug}.ics"`,
+        "Content-Disposition": `attachment; filename="${roomSlug.replace(/[^a-z0-9-]/g, "")}.ics"`,
       },
     });
   } catch (error) {

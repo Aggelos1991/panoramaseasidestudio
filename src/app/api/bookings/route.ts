@@ -162,8 +162,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = Math.max(parseInt(searchParams.get("page") || "1") || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(searchParams.get("limit") || "20") || 20, 1),
+      100,
+    );
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;

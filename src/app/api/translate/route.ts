@@ -27,6 +27,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Limit input to prevent API quota abuse
+    if (
+      texts.length > 20 ||
+      texts.some(
+        (t: unknown) => typeof t !== "string" || (t as string).length > 5000,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Too many or too large texts (max 20 texts, 5000 chars each)" },
+        { status: 400 },
+      );
+    }
+
     if (!targetLang || !["el", "de"].includes(targetLang)) {
       return NextResponse.json(
         { error: "targetLang must be 'el' or 'de'" },

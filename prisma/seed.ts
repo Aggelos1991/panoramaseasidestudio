@@ -7,8 +7,14 @@ const PHOTO_BASE =
   "https://panoramastudiosmastichari.hotelskosisland.com/data/Photos/OriginalPhoto";
 
 async function main() {
-  // Create admin user
-  const adminPassword = await hash("admin123", 12);
+  // Create admin user — password MUST be set via environment variable
+  const rawPassword = process.env.ADMIN_INITIAL_PASSWORD;
+  if (!rawPassword || rawPassword.length < 12) {
+    throw new Error(
+      "ADMIN_INITIAL_PASSWORD env var must be set (min 12 chars) before seeding",
+    );
+  }
+  const adminPassword = await hash(rawPassword, 12);
   await prisma.adminUser.upsert({
     where: { email: "admin@panoramaseasidekos.com" },
     update: {},

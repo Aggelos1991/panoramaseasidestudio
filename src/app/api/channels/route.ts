@@ -46,6 +46,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate iCal URL to prevent SSRF attacks
+    if (icalImportUrl) {
+      try {
+        const url = new URL(icalImportUrl);
+        if (!["http:", "https:"].includes(url.protocol)) {
+          return NextResponse.json(
+            { error: "iCal URL must use HTTP(S)" },
+            { status: 400 },
+          );
+        }
+        const hostname = url.hostname.toLowerCase();
+        const blocked =
+          hostname === "localhost" ||
+          hostname === "127.0.0.1" ||
+          hostname.startsWith("10.") ||
+          hostname.startsWith("192.168.") ||
+          hostname.startsWith("172.") ||
+          hostname === "mysql" ||
+          hostname === "app" ||
+          hostname.includes("169.254") ||
+          hostname === "0.0.0.0";
+        if (blocked) {
+          return NextResponse.json(
+            { error: "iCal URL cannot point to internal addresses" },
+            { status: 400 },
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { error: "Invalid iCal URL" },
+          { status: 400 },
+        );
+      }
+    }
+
     const channel = await prisma.channel.create({
       data: {
         name,
