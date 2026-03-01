@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { contactFormSchema } from "@/lib/validators";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/gdpr-crypto";
+import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+// 5 requests per minute — contact form submissions
+const limiter = createRateLimiter({ maxRequests: 5, windowMs: 60_000 });
 
 export async function POST(request: NextRequest) {
+  const rl = limiter(`contact:${getClientIp(request)}`);
+  if (!rl.success) return rateLimitResponse(rl.resetMs);
+
   try {
     const body = await request.json();
 

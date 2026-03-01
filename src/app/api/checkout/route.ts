@@ -8,8 +8,15 @@ import { isInClosedSeason } from "@/lib/closed-season";
 import { sendBookingNotification } from "@/lib/telegram";
 import { sendBookingConfirmation } from "@/lib/email";
 import { calculateStayPrice } from "@/lib/pricing";
+import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+// 10 requests per minute — payment flow
+const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
 export async function POST(request: NextRequest) {
+  const rl = limiter(`checkout:${getClientIp(request)}`);
+  if (!rl.success) return rateLimitResponse(rl.resetMs);
+
   try {
     const body = await request.json();
     const {

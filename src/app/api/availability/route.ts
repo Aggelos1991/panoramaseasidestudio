@@ -5,11 +5,18 @@ import { getLocalizedField } from "@/lib/utils";
 import { HOTEL_IMAGES } from "@/lib/constants";
 import { isInClosedSeason } from "@/lib/closed-season";
 import { parseStringArray, parseIntArray } from "@/lib/json-array";
+import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 const PHOTO_BASE =
   "https://panoramastudiosmastichari.hotelskosisland.com/data/Photos/OriginalPhoto";
 
+// 30 requests per minute — browsing rooms triggers this often
+const limiter = createRateLimiter({ maxRequests: 30, windowMs: 60_000 });
+
 export async function POST(request: NextRequest) {
+  const rl = limiter(`availability:${getClientIp(request)}`);
+  if (!rl.success) return rateLimitResponse(rl.resetMs);
+
   try {
     const body = await request.json();
     const { checkIn, checkOut, guests = 1, locale = "en" } = body;

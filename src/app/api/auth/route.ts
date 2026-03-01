@@ -3,8 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { compare } from "bcryptjs";
 import { createToken, setAdminCookie, clearAdminCookie } from "@/lib/auth";
 import { verifyTOTP, verifyBackupCode } from "@/lib/totp";
+import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+// 10 attempts per 15 minutes — brute-force protection (on top of account lockout)
+const limiter = createRateLimiter({ maxRequests: 10, windowMs: 15 * 60_000 });
 
 export async function POST(request: NextRequest) {
+  const rl = limiter(`auth:${getClientIp(request)}`);
+  if (!rl.success) return rateLimitResponse(rl.resetMs);
+
   try {
     const body = await request.json();
     const { email, password, totpToken, backupCode } = body;

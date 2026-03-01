@@ -4,8 +4,15 @@ import { generateReferenceNumber } from "@/lib/utils";
 import { encrypt, decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
 import { getAdminSession } from "@/lib/auth";
 import { calculateStayPrice } from "@/lib/pricing";
+import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+// 10 requests per minute — booking creation
+const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
 export async function POST(request: NextRequest) {
+  const rl = limiter(`bookings:${getClientIp(request)}`);
+  if (!rl.success) return rateLimitResponse(rl.resetMs);
+
   try {
     const body = await request.json();
     const {
