@@ -7,6 +7,7 @@ import { encrypt } from "@/lib/gdpr-crypto";
 import { isInClosedSeason } from "@/lib/closed-season";
 import { sendBookingNotification } from "@/lib/telegram";
 import { sendBookingConfirmation } from "@/lib/email";
+import { calculateStayPrice } from "@/lib/pricing";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,8 +17,6 @@ export async function POST(request: NextRequest) {
       checkIn,
       checkOut,
       guests,
-      nights,
-      totalPrice,
       firstName,
       lastName,
       email,
@@ -37,6 +36,9 @@ export async function POST(request: NextRequest) {
     // Ensure dates are parsed as UTC midnight to match DB storage
     const checkInDate = new Date(checkIn + "T00:00:00.000Z");
     const checkOutDate = new Date(checkOut + "T00:00:00.000Z");
+
+    // SERVER-SIDE price calculation — never trust client-submitted prices
+    const { totalPrice, nights } = await calculateStayPrice(roomId, checkInDate, checkOutDate);
 
     // Rooms closed Nov–Mar
     if (isInClosedSeason(checkInDate, checkOutDate)) {

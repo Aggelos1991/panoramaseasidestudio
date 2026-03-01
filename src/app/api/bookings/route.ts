@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateReferenceNumber } from "@/lib/utils";
-import { parseISO } from "date-fns";
 import { encrypt, decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
 import { getAdminSession } from "@/lib/auth";
+import { calculateStayPrice } from "@/lib/pricing";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +13,6 @@ export async function POST(request: NextRequest) {
       checkIn,
       checkOut,
       guests,
-      nights,
-      totalPrice,
       firstName,
       lastName,
       email,
@@ -43,6 +41,13 @@ export async function POST(request: NextRequest) {
         referenceNumber,
       });
     }
+
+    // Server-side price calculation — never trust client-submitted prices
+    const { totalPrice, nights } = await calculateStayPrice(
+      roomId,
+      checkInDate,
+      checkOutDate,
+    );
 
     // Use a transaction to prevent double booking
     const booking = await prisma.$transaction(async (tx) => {

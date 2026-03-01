@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as deepl from "deepl-node";
+import { getAdminSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const apiKey = process.env.DEEPL_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
