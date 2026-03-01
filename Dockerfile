@@ -19,6 +19,18 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+
+# Dummy build-time env vars (Next.js needs them during static analysis)
+# Real values are injected at runtime via docker-compose.yml
+ENV STRIPE_SECRET_KEY=sk_build_placeholder
+ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_build_placeholder
+ENV STRIPE_WEBHOOK_SECRET=whsec_build_placeholder
+ENV DATABASE_URL=mysql://build:build@localhost:3306/build
+ENV JWT_SECRET=build_placeholder
+ENV ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
+ENV RESEND_API_KEY=re_build_placeholder
+ENV NEXT_PUBLIC_APP_URL=http://localhost:3000
+
 RUN npm run build
 
 # Stage 3: Production runner
