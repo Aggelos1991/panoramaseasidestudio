@@ -30,8 +30,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure dates are parsed as UTC midnight to match DB storage
-    const checkInDate = new Date(checkIn + "T00:00:00.000Z");
-    const checkOutDate = new Date(checkOut + "T00:00:00.000Z");
+    // Handle both date-only ("2026-04-01") and ISO datetime strings
+    const ciStr = String(checkIn).split("T")[0];
+    const coStr = String(checkOut).split("T")[0];
+    const checkInDate = new Date(ciStr + "T00:00:00.000Z");
+    const checkOutDate = new Date(coStr + "T00:00:00.000Z");
 
     // For fallback rooms (no DB), create a lightweight response
     if (roomId.startsWith("fallback-")) {

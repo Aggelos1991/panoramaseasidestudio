@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 import { BookingSteps } from "@/components/booking/booking-steps";
 import { DateSelector } from "@/components/booking/date-selector";
 import { RoomSelector } from "@/components/booking/room-selector";
@@ -76,8 +77,8 @@ export default function BookingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          checkIn: booking.checkIn.toISOString(),
-          checkOut: booking.checkOut.toISOString(),
+          checkIn: format(booking.checkIn, "yyyy-MM-dd"),
+          checkOut: format(booking.checkOut, "yyyy-MM-dd"),
           guests: booking.guests,
         }),
       });
@@ -110,11 +111,9 @@ export default function BookingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           roomId: booking.selectedRoom.id,
-          checkIn: booking.checkIn!.toISOString(),
-          checkOut: booking.checkOut!.toISOString(),
+          checkIn: format(booking.checkIn!, "yyyy-MM-dd"),
+          checkOut: format(booking.checkOut!, "yyyy-MM-dd"),
           guests: booking.guests,
-          nights: booking.selectedRoom.nights,
-          totalPrice: booking.selectedRoom.totalPrice,
           ...booking.guestDetails,
         }),
       });
