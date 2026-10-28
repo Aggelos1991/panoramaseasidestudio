@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { AMENITY_LABELS } from "@/lib/constants";
@@ -20,6 +20,7 @@ export function RoomSelector({ rooms, loading, selectedRoom, onSelect }: Props) 
   const t = useTranslations("booking");
   const roomsT = useTranslations("rooms");
   const locale = useLocale();
+  const reduce = useReducedMotion();
 
   if (loading) {
     return (
@@ -43,7 +44,7 @@ export function RoomSelector({ rooms, loading, selectedRoom, onSelect }: Props) 
         <div className="mt-10 grid gap-10 sm:grid-cols-2">
           {rooms.map((room, index) => {
             const isSelected = selectedRoom?.id === room.id;
-            const amenities = room.amenities
+            const amenities = (room.amenities ?? [])
               .slice(0, 3)
               .map((key) => AMENITY_LABELS[key]?.[locale] || AMENITY_LABELS[key]?.en || key)
               .join(" · ");
@@ -51,27 +52,27 @@ export function RoomSelector({ rooms, loading, selectedRoom, onSelect }: Props) 
               <motion.button
                 key={room.id}
                 type="button"
+                aria-pressed={isSelected}
                 onClick={() => onSelect(room)}
-                initial={{ y: 48 }}
+                initial={reduce ? false : { y: 36 }}
                 animate={{ y: 0 }}
-                transition={{ duration: 0.85, delay: index * 0.08, ease: cinematic }}
+                transition={
+                  reduce
+                    ? { duration: 0 }
+                    : { duration: 0.85, delay: index * 0.08, ease: cinematic }
+                }
                 className={cn(
-                  "block w-full rounded-[28px] text-left",
+                  "relative block w-full rounded-[28px] text-left",
                   isSelected && "ring-2 ring-[#8a6232] ring-offset-4 ring-offset-[#f3efe8]",
                 )}
               >
-                {isSelected && (
-                  <span className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-[#1c1916] text-[#f3efe8]">
-                    <Check className="h-4 w-4" />
-                  </span>
-                )}
                 <TiltedCard
                   imageSrc={room.imageUrl}
                   altText={room.name}
                   captionText={room.name}
                   showTooltip={false}
                   floating
-                  intro
+                  intro={false}
                   introDelay={index * 120}
                   glare={0.35}
                   shadow={0.4}
@@ -98,6 +99,11 @@ export function RoomSelector({ rooms, loading, selectedRoom, onSelect }: Props) 
                     </div>
                   }
                 />
+                {isSelected && (
+                  <span className="pointer-events-none absolute right-4 top-4 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-[#1c1916] text-[#f3efe8]">
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                )}
               </motion.button>
             );
           })}

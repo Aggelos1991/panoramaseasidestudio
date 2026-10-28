@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { contactFormSchema } from "@/lib/validators";
-import { prisma } from "@/lib/prisma";
+import { saveContactSubmission } from "@/lib/store";
 import { encrypt } from "@/lib/gdpr-crypto";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -26,13 +26,12 @@ export async function POST(request: NextRequest) {
 
     // Try to save to database, but don't fail if DB isn't connected
     try {
-      await prisma.contactSubmission.create({
-        data: {
-          name: encrypt(name),
-          email: encrypt(email),
-          subject: subject ? encrypt(subject) : null,
-          message: encrypt(message),
-        },
+      await saveContactSubmission({
+        name: encrypt(name),
+        email: encrypt(email),
+        subject: subject ? encrypt(subject) : null,
+        message: encrypt(message),
+        locale: "en",
       });
     } catch {
       // DB not connected — that's okay, just log and continue

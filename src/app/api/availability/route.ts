@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { differenceInDays, eachDayOfInterval } from "date-fns";
+import {
+  countBlockedDates,
+  countOverlappingBookings,
+  countOverlappingExternal,
+  listPricingRulesForStay,
+  listRooms,
+} from "@/lib/store";
 import { getLocalizedField } from "@/lib/utils";
 import { HOTEL_IMAGES } from "@/lib/constants";
 import { isInClosedSeason } from "@/lib/closed-season";
-import { parseStringArray, parseIntArray } from "@/lib/json-array";
+import { parseIntArray } from "@/lib/json-array";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 const PHOTO_BASE =
@@ -20,6 +26,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { checkIn, checkOut, guests = 1, locale = "en" } = body;
+
+    const guestCount = Number(guests);
+    if (!Number.isInteger(guestCount) || guestCount < 1 || guestCount > 2) {
+      return NextResponse.json(
+        { error: "Each room allows at most 2 guests" },
+        { status: 400 },
+      );
+    }
 
     if (!checkIn || !checkOut) {
       return NextResponse.json(
@@ -48,55 +62,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ rooms: [] });
     }
 
-    const rooms = await prisma.room.findMany({
-      where: {
-        isActive: true,
-        capacity: { gte: guests },
-      },
-      include: {
-        images: {
-          where: { isPrimary: true },
-          take: 1,
-        },
-        pricingRules: {
-          where: {
-            startDate: { lte: checkOutDate },
-            endDate: { gte: checkInDate },
-          },
-        },
-        blockedDates: {
-          where: {
-            date: {
-              gte: checkInDate,
-              lt: checkOutDate,
-            },
-          },
-        },
-      },
-      orderBy: { sortOrder: "asc" },
-    });
+    const rooms = (await listRooms({ activeOnly: true })).filter(
+      (room) => room.capacity >= guestCount,
+    );
 
     const availableRooms = [];
 
     for (const room of rooms) {
-      if (room.blockedDates.length > 0) continue;
+      const blocked = await countBlockedDates(room.id, checkInDate, checkOutDate);
+      if (blocked > 0) continue;
 
-      const [overlappingBookings, overlappingExternal] = await Promise.all([
-        prisma.booking.count({
-          where: {
-            roomId: room.id,
-            status: "CONFIRMED",
-            checkIn: { lt: checkOutDate },
-            checkOut: { gt: checkInDate },
-          },
-        }),
-        prisma.externalBooking.count({
-          where: {
-            roomId: room.id,
-            checkIn: { lt: checkOutDate },
-            checkOut: { gt: checkInDate },
-          },
-        }),
+      const [overlappingBookings, overlappingExternal, pricingRules] = await Promise.all([
+        countOverlappingBookings(room.id, checkInDate, checkOutDate),
+        countOverlappingExternal(room.id, checkInDate, checkOutDate),
+        listPricingRulesForStay(room.id, checkInDate, checkOutDate),
       ]);
 
       if (overlappingBookings + overlappingExternal >= room.totalUnits) continue;
@@ -110,7 +89,7 @@ export async function POST(request: NextRequest) {
       for (const day of stayDays) {
         const dayOfWeek = day.getDay(); // 0=Sun..6=Sat
 
-        const matchingRules = room.pricingRules.filter(
+        const matchingRules = pricingRules.filter(
           (rule) => day >= rule.startDate && day <= rule.endDate,
         );
 
@@ -147,7 +126,7 @@ export async function POST(request: NextRequest) {
           room.images[0]?.url ||
           HOTEL_IMAGES.rooms[room.slug as keyof typeof HOTEL_IMAGES.rooms] ||
           `${PHOTO_BASE}/16795/1679569/1679569240.JPEG`,
-        amenities: parseStringArray(room.amenities),
+        amenities: room.amenities,
       });
     }
 

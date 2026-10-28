@@ -1,15 +1,11 @@
-import { prisma } from "@/lib/prisma";
+import { listBookings } from "@/lib/store";
 import { decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
 import { CalendarCheck } from "lucide-react";
 import { BookingsTable } from "./bookings-table";
 import { PageHeader } from "@/components/admin/page-header";
 
 async function getBookings() {
-  const raw = await prisma.booking.findMany({
-    include: { room: true },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const raw = await listBookings({}, { includeRoom: true, take: 100 });
   return raw.map((b) =>
     decryptPII(b as unknown as Record<string, unknown>, [...BOOKING_PII_FIELDS]),
   ) as unknown as typeof raw;
@@ -33,7 +29,7 @@ export default async function AdminBookingsPage() {
     nights: b.nights,
     totalPrice: String(b.totalPrice),
     status: b.status,
-    room: { nameEn: b.room.nameEn },
+    room: { nameEn: b.room?.nameEn || "Room" },
   }));
 
   const confirmedCount = bookings.filter((b) => b.status === "CONFIRMED").length;

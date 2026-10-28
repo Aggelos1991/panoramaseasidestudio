@@ -28,6 +28,36 @@ export type BtcpayInvoice = {
   checkoutLink: string;
 };
 
+export async function getBtcpayInvoice(invoiceId: string): Promise<{
+  id: string;
+  status: string;
+  amount: string;
+  currency: string;
+} | null> {
+  if (!isBtcpayConfigured()) return null;
+  const base = process.env.BTCPAY_URL!.replace(/\/$/, "");
+  const res = await fetch(
+    `${base}/api/v1/stores/${process.env.BTCPAY_STORE_ID}/invoices/${encodeURIComponent(invoiceId)}`,
+    {
+      headers: { Authorization: `token ${process.env.BTCPAY_API_KEY}` },
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  return {
+    id: String(data.id),
+    status: String(data.status || ""),
+    amount: String(data.amount),
+    currency: String(data.currency || ""),
+  };
+}
+
+export function btcAmountMatches(invoiceAmount: string, totalEur: number): boolean {
+  const value = Number(invoiceAmount);
+  return Number.isFinite(value) && Math.abs(value - Number(totalEur)) < 0.02;
+}
+
 export async function createBtcpayInvoice(
   input: CreateInvoiceInput,
 ): Promise<BtcpayInvoice> {

@@ -1,55 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
+import { stripe, stripeTestGate } from "@/lib/stripe";
+import { findUserById } from "@/lib/identity";
+import {
+  isStoreUnavailable,
+  referenceExists,
+  reserveBooking,
+  updateBooking,
+} from "@/lib/store";
 import { generateReferenceNumber } from "@/lib/utils";
-import { parseISO } from "date-fns";
 import { encrypt } from "@/lib/gdpr-crypto";
-import { isInClosedSeason } from "@/lib/closed-season";
-import { sendBookingNotification } from "@/lib/telegram";
-import { sendBookingConfirmation } from "@/lib/email";
 import { calculateStayPrice } from "@/lib/pricing";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { createBtcpayInvoice, isBtcpayConfigured } from "@/lib/btcpay";
 import { getGuestSession } from "@/lib/auth";
+import { validateBookingRequest } from "@/lib/stay-rules";
+import { crossSiteResponse } from "@/lib/request-guard";
 
 // 10 requests per minute — payment flow
 const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
+function parseStayDate(value: unknown): Date | null {
+  if (typeof value !== "string") return null;
+  const day = value.split("T")[0];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  return new Date(`${day}T00:00:00.000Z`);
+}
+
+function normalizePaymentMethod(value: unknown): "card" | "btcpay" | null {
+  if (value === "card" || value === "stripe") return "card";
+  if (value === "btcpay" || value === "btc" || value === "bitcoin") return "btcpay";
+  return null;
+}
+
 export async function POST(request: NextRequest) {
+  const blocked = crossSiteResponse(request);
+  if (blocked) return blocked;
+
   const rl = limiter(`checkout:${getClientIp(request)}`);
   if (!rl.success) return rateLimitResponse(rl.resetMs);
 
   try {
     const body = await request.json();
-    const {
-      roomId,
-      checkIn,
-      checkOut,
-      guests,
-      firstName,
-      lastName,
-      email,
-      phone,
-      country,
-      specialRequests,
-      locale = "en",
-      paymentMethod = "stripe",
-    } = body;
-
-    if (!roomId || !checkIn || !checkOut || !firstName || !lastName || !email) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+    const paymentMethod =
+      body.paymentMethod == null ? "card" : normalizePaymentMethod(body.paymentMethod);
+    if (!paymentMethod) {
+      return NextResponse.json({ error: "Unknown payment method" }, { status: 400 });
     }
-
-    if (paymentMethod !== "stripe" && paymentMethod !== "btcpay") {
-      return NextResponse.json(
-        { error: "Unknown payment method" },
-        { status: 400 },
-      );
+    if (paymentMethod === "card") {
+      const gate = stripeTestGate();
+      if (!gate.ok) {
+        return NextResponse.json({ error: gate.error }, { status: gate.status });
+      }
     }
-
     if (paymentMethod === "btcpay" && !isBtcpayConfigured()) {
       return NextResponse.json(
         { error: "Bitcoin payments are not available" },
@@ -57,115 +59,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure dates are parsed as UTC midnight to match DB storage
-    // Handle both date-only ("2026-04-01") and ISO datetime strings
-    const ciStr = String(checkIn).split("T")[0];
-    const coStr = String(checkOut).split("T")[0];
-    const checkInDate = new Date(ciStr + "T00:00:00.000Z");
-    const checkOutDate = new Date(coStr + "T00:00:00.000Z");
-
-    // SERVER-SIDE price calculation — never trust client-submitted prices
-    const { totalPrice, nights } = await calculateStayPrice(roomId, checkInDate, checkOutDate);
-
-    // Rooms closed Nov–Mar
-    if (isInClosedSeason(checkInDate, checkOutDate)) {
-      return NextResponse.json(
-        { error: "Rooms are closed during this period (November – March)" },
-        { status: 409 },
-      );
+    const checkInDate = parseStayDate(body.checkIn);
+    const checkOutDate = parseStayDate(body.checkOut);
+    if (!body.roomId || typeof body.roomId !== "string" || !checkInDate || !checkOutDate) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Client totals are ignored. Price is calculated below from the room record.
+    const rules = validateBookingRequest({
+      guests: body.guests,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      email: body.email,
+      phone: body.phone,
+      country: body.country,
+      specialRequests: body.specialRequests,
+      dateOfBirth: body.dateOfBirth,
+      age: body.age,
+      pets: body.pets,
+      arrivalTime: body.arrivalTime,
+      departureTime: body.departureTime,
+    });
+    if (!rules.ok) {
+      return NextResponse.json({ error: rules.error }, { status: rules.status });
+    }
+    const guest = rules.guest;
+    const locale = body.locale === "el" || body.locale === "de" ? body.locale : "en";
+
+    // SERVER-SIDE price calculation — never trust client-submitted prices
+    const { totalPrice, nights } = await calculateStayPrice(
+      body.roomId,
+      checkInDate,
+      checkOutDate,
+    );
+
     const guestSession = await getGuestSession();
+    let guestId: string | null = null;
+    if (guestSession?.id) {
+      const linked = await findUserById(String(guestSession.id)).catch(() => null);
+      if (linked?.role === "guest" && linked.status === "active") guestId = String(linked._id);
+    }
 
-    // Use a transaction to prevent double booking
-    const booking = await prisma.$transaction(async (tx) => {
-      const room = await tx.room.findUnique({
-        where: { id: roomId },
-      });
+    let referenceNumber = generateReferenceNumber();
+    for (let attempts = 0; attempts < 10; attempts++) {
+      if (!(await referenceExists(referenceNumber))) break;
+      referenceNumber = generateReferenceNumber();
+    }
 
-      if (!room) {
-        throw new Error("Room not found");
-      }
-
-      const [overlappingBookings, overlappingExternal] = await Promise.all([
-        tx.booking.count({
-          where: {
-            roomId,
-            status: "CONFIRMED",
-            checkIn: { lt: checkOutDate },
-            checkOut: { gt: checkInDate },
-          },
-        }),
-        tx.externalBooking.count({
-          where: {
-            roomId,
-            checkIn: { lt: checkOutDate },
-            checkOut: { gt: checkInDate },
-          },
-        }),
-      ]);
-
-      if (overlappingBookings + overlappingExternal >= room.totalUnits) {
-        throw new Error("Room no longer available");
-      }
-
-      const blockedDates = await tx.blockedDate.count({
-        where: {
-          roomId,
-          date: {
-            gte: checkInDate,
-            lt: checkOutDate,
-          },
-        },
-      });
-
-      if (blockedDates > 0) {
-        throw new Error("Some dates are blocked");
-      }
-
-      let referenceNumber: string;
-      let attempts = 0;
-      do {
-        referenceNumber = generateReferenceNumber();
-        const existing = await tx.booking.findUnique({
-          where: { referenceNumber },
-        });
-        if (!existing) break;
-        attempts++;
-      } while (attempts < 10);
-
-      const newBooking = await tx.booking.create({
-        data: {
-          referenceNumber,
-          roomId,
-          checkIn: checkInDate,
-          checkOut: checkOutDate,
-          nights,
-          guests,
-          totalPrice,
-          guestFirstName: encrypt(firstName),
-          guestLastName: encrypt(lastName),
-          guestEmail: encrypt(email),
-          guestPhone: phone ? encrypt(phone) : null,
-          guestCountry: country ? encrypt(country) : null,
-          specialRequests: specialRequests ? encrypt(specialRequests) : null,
-          gdprConsent: true,
-          gdprConsentAt: new Date(),
-          locale,
-          guestId: guestSession?.id,
-          status: "CONFIRMED",
-          // Bitcoin settles asynchronously; card bookings keep the legacy
-          // behavior (webhook/success page reconcile the Stripe payment id)
-          paymentStatus: paymentMethod === "btcpay" ? "PENDING" : "PAID",
-        },
-        include: { room: true },
-      });
-
-      return newBooking;
+    const checkInLabel = checkInDate.toISOString().slice(0, 10);
+    const booking = await reserveBooking({
+      referenceNumber,
+      roomId: body.roomId,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      nights,
+      guests: guest.guests,
+      totalPrice,
+      guestFirstName: encrypt(guest.firstName),
+      guestLastName: encrypt(guest.lastName),
+      guestEmail: encrypt(guest.email),
+      guestPhone: guest.phone ? encrypt(guest.phone) : null,
+      guestCountry: guest.country ? encrypt(guest.country) : null,
+      specialRequests: guest.specialRequests ? encrypt(guest.specialRequests) : null,
+      locale,
+      guestId,
+      paymentMethod,
+      paymentNotes: `check-in ${checkInLabel} from 14:00 until midnight; check-out by 12:00`,
     });
 
     // APP_URL is read at runtime (NEXT_PUBLIC_* gets inlined at build time)
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const checkOutLabel = checkOutDate.toISOString().slice(0, 10);
 
     // ─── Bitcoin via BTCPay Server ───
     if (paymentMethod === "btcpay") {
@@ -175,95 +141,80 @@ export async function POST(request: NextRequest) {
           bookingId: booking.id,
           referenceNumber: booking.referenceNumber,
           redirectUrl: `${appUrl}/${locale}/booking/success?ref=${booking.referenceNumber}`,
-          buyerEmail: email,
+          buyerEmail: guest.email,
         });
 
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: { btcpayInvoiceId: invoice.id, paymentMethod: "btcpay" },
-        });
+        await updateBooking(booking.id, { btcpayInvoiceId: invoice.id, paymentMethod: "btcpay" });
 
         // Guest notifications are sent from the BTCPay webhook once the
         // invoice settles — bitcoin payments are not instant.
         return NextResponse.json({ url: invoice.checkoutLink });
       } catch (err) {
         // Release the room hold — no invoice means no way to pay
-        await prisma.booking
-          .update({ where: { id: booking.id }, data: { status: "CANCELLED" } })
-          .catch(() => {});
+        await updateBooking(booking.id, { status: "CANCELLED" }).catch(() => {});
         throw err;
       }
     }
 
     // ─── Card / Apple Pay / Google Pay / PayPal via Stripe Checkout ───
-    // payment_method_types is intentionally omitted: Stripe then offers every
-    // method enabled in the Dashboard (cards + Apple Pay/Google Pay wallets,
-    // and PayPal once activated) that supports the currency.
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: email,
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            product_data: {
-              name: booking.room.nameEn,
-              description: `${nights} night${nights > 1 ? "s" : ""} · Check-in: ${checkIn.split("T")[0]} · Check-out: ${checkOut.split("T")[0]}`,
+    // The amount is the server total. payment_method_types is omitted so
+    // Stripe offers the methods enabled in the Dashboard.
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        customer_email: guest.email,
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              product_data: {
+                name: booking.room?.nameEn || "Stay",
+                description: `${nights} night${nights > 1 ? "s" : ""} · Check-in: ${checkInLabel} · Check-out: ${checkOutLabel}`,
+              },
+              unit_amount: Math.round(Number(totalPrice) * 100),
             },
-            unit_amount: Math.round(Number(totalPrice) * 100), // Stripe uses cents
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        metadata: {
+          bookingId: booking.id,
+          referenceNumber: booking.referenceNumber,
         },
-      ],
-      metadata: {
-        bookingId: booking.id,
-        referenceNumber: booking.referenceNumber,
-      },
-      success_url: `${appUrl}/${locale}/booking/success?ref=${booking.referenceNumber}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/${locale}/booking/cancel`,
-    });
+        success_url: `${appUrl}/${locale}/booking/success?ref=${booking.referenceNumber}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl}/${locale}/booking/cancel`,
+      });
+    } catch (err) {
+      await updateBooking(booking.id, { status: "CANCELLED", paymentStatus: "PENDING" }).catch(() => {});
+      throw err;
+    }
 
-    // Save Stripe session ID on booking
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: { stripeSessionId: session.id },
-    });
+    if (!session.url) {
+      await updateBooking(booking.id, { status: "CANCELLED", paymentStatus: "PENDING" }).catch(() => {});
+      return NextResponse.json(
+        { error: "Failed to create checkout session" },
+        { status: 500 },
+      );
+    }
 
-    // Telegram notification (fire-and-forget)
-    sendBookingNotification({
-      type: "internal",
-      guestName: `${firstName} ${lastName}`,
-      roomName: booking.room.nameEn,
-      checkIn: booking.checkIn,
-      checkOut: booking.checkOut,
-      nights: booking.nights,
-      totalPrice: Number(booking.totalPrice),
-      referenceNumber: booking.referenceNumber,
-    }).catch(() => {});
-
-    // Confirmation email to guest (fire-and-forget)
-    sendBookingConfirmation({
-      guestName: `${firstName} ${lastName}`,
-      guestEmail: email,
-      roomName: booking.room.nameEn,
-      checkIn: booking.checkIn,
-      checkOut: booking.checkOut,
-      nights: booking.nights,
-      totalPrice: Number(booking.totalPrice),
-      referenceNumber: booking.referenceNumber,
-    }).catch(() => {});
+    await updateBooking(booking.id, { stripeSessionId: session.id, paymentMethod: "card" });
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("Checkout error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to create checkout";
+    const message = error instanceof Error ? error.message : "Failed to create checkout";
+
+    if (isStoreUnavailable(error)) {
+      return NextResponse.json({ error: "Bookings are temporarily unavailable" }, { status: 503 });
+    }
 
     if (
       message === "Room no longer available" ||
-      message === "Some dates are blocked"
+      message === "Some dates are blocked" ||
+      message === "Each room allows at most 2 guests" ||
+      message === "Room not found"
     ) {
-      return NextResponse.json({ error: message }, { status: 409 });
+      return NextResponse.json({ error: message }, { status: message === "Room not found" ? 404 : 409 });
     }
 
     return NextResponse.json(

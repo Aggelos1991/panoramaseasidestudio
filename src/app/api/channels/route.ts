@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
+import { createChannel, deleteChannel, listChannels } from "@/lib/store";
 
 // GET — list all channels
 export async function GET() {
@@ -10,13 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const channels = await prisma.channel.findMany({
-      include: {
-        room: { select: { nameEn: true, slug: true } },
-        _count: { select: { externalBookings: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const channels = await listChannels();
 
     return NextResponse.json({ channels });
   } catch (error) {
@@ -81,17 +75,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const channel = await prisma.channel.create({
-      data: {
-        name,
-        platform,
-        icalImportUrl: icalImportUrl || null,
-        roomId,
-        color: color || "#6366f1",
-      },
-      include: {
-        room: { select: { nameEn: true, slug: true } },
-      },
+    const channel = await createChannel({
+      name,
+      platform,
+      icalImportUrl: icalImportUrl || null,
+      roomId,
+      color: color || "#6366f1",
     });
 
     return NextResponse.json({ channel });
@@ -119,7 +108,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "ID required" }, { status: 400 });
     }
 
-    await prisma.channel.delete({ where: { id } });
+    await deleteChannel(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

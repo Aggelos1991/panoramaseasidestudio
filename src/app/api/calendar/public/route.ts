@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { listBlockedDates, listBookings, listExternalBookings, listRooms } from "@/lib/store";
 
 const limiter = createRateLimiter({ maxRequests: 60, windowMs: 60_000 });
 const CLOSED_MONTHS = new Set([11, 12, 1, 2, 3]);
@@ -48,29 +48,13 @@ export async function GET(request: NextRequest) {
     const rangeEnd = new Date(to + "T00:00:00.000Z");
 
     const [rooms, bookings, external, blocked] = await Promise.all([
-      prisma.room.findMany({
-        where: { isActive: true },
-        select: { id: true, totalUnits: true },
-      }),
-      prisma.booking.findMany({
-        where: {
-          status: "CONFIRMED",
-          checkIn: { lte: rangeEnd },
-          checkOut: { gt: rangeStart },
-        },
-        select: { roomId: true, checkIn: true, checkOut: true },
-      }),
-      prisma.externalBooking.findMany({
-        where: {
-          checkIn: { lte: rangeEnd },
-          checkOut: { gt: rangeStart },
-        },
-        select: { roomId: true, checkIn: true, checkOut: true },
-      }),
-      prisma.blockedDate.findMany({
-        where: { date: { gte: rangeStart, lte: rangeEnd } },
-        select: { roomId: true, date: true },
-      }),
+      listRooms({ activeOnly: true }),
+      listBookings(
+        { status: "CONFIRMED", checkInLte: rangeEnd, checkOutGt: rangeStart },
+        { take: 2000 },
+      ),
+      listExternalBookings({ checkInLte: rangeEnd, checkOutGt: rangeStart }),
+      listBlockedDates(rangeStart, rangeEnd),
     ]);
 
     const blockedKeys = new Set(

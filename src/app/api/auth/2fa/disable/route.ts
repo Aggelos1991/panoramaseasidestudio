@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 import { compare } from "bcryptjs";
+import { findUserById, updateAdminById } from "@/lib/identity";
 
-// POST — disable 2FA (requires current password for confirmation)
 export async function POST(request: NextRequest) {
   try {
     const session = await getAdminSession();
@@ -20,11 +19,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const admin = await prisma.adminUser.findUnique({
-      where: { id: session.id },
-    });
+    const admin = await findUserById(String(session.id));
 
-    if (!admin) {
+    if (!admin || admin.role !== "admin") {
       return NextResponse.json({ error: "Admin not found" }, { status: 404 });
     }
 
@@ -35,8 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify password
-    const isValid = await compare(password, admin.password);
+    const isValid = await compare(password, admin.passwordHash);
     if (!isValid) {
       return NextResponse.json(
         { error: "Incorrect password" },
@@ -44,14 +40,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Disable 2FA
-    await prisma.adminUser.update({
-      where: { id: session.id },
-      data: {
-        twoFactorEnabled: false,
-        twoFactorSecret: null,
-        backupCodes: null,
-      },
+    await updateAdminById(String(admin._id), {
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      backupCodes: null,
     });
 
     return NextResponse.json({ success: true });

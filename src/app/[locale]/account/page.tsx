@@ -43,6 +43,8 @@ export default function AccountPage() {
   const [stays, setStays] = useState<Stay[]>([]);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [otpEmail, setOtpEmail] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
 
   async function loadAccount() {
@@ -60,10 +62,18 @@ export default function AccountPage() {
   }
 
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("error");
-    if (code === "missing" || code === "invalid" || code === "exists" || code === "failed") {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("error");
+    if (
+      code === "missing" ||
+      code === "invalid" ||
+      code === "exists" ||
+      code === "failed" ||
+      code === "unavailable"
+    ) {
       setError(t(code));
     }
+    if (params.get("otp") === "1") setOtpEmail("pending");
     loadAccount().catch(() => {});
     // t is stable for the error string read above; avoid refetching on each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,15 +102,51 @@ export default function AccountPage() {
         }),
       });
       const data = await res.json();
+      if (data.otpRequired) {
+        setOtpEmail(String(form.get("email") || "pending"));
+        return;
+      }
       if (!res.ok) {
         const code = data.error;
         setError(
-          code === "missing" || code === "invalid" || code === "exists" || code === "failed"
+          code === "missing" ||
+            code === "invalid" ||
+            code === "exists" ||
+            code === "failed" ||
+            code === "unavailable"
             ? t(code)
             : t("failed"),
         );
         return;
       }
+      setGuest(data.guest);
+      await loadAccount();
+    } catch {
+      setError(t("failed"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function submitOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setPending(true);
+    try {
+      const res = await fetch("/api/guest/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: otpEmail === "pending" ? undefined : otpEmail,
+          code: otpCode,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error === "unavailable" ? t("unavailable") : t("otpInvalid"));
+        return;
+      }
+      setOtpEmail(null);
       setGuest(data.guest);
       await loadAccount();
     } catch {
@@ -248,6 +294,36 @@ export default function AccountPage() {
               </ul>
             )}
           </div>
+        ) : otpEmail ? (
+          <form
+            onSubmit={submitOtp}
+            className="mt-10 max-w-md space-y-4 bg-white p-6 shadow-soft"
+          >
+            <h2 className="font-serif text-2xl text-deep-blue">{t("otpTitle")}</h2>
+            <p className="text-sm text-gray-600">{t("otpHint")}</p>
+            <label className="block text-sm text-gray-700">
+              {t("otpCode")}
+              <input
+                value={otpCode}
+                onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                minLength={6}
+                maxLength={6}
+                pattern="\d{6}"
+                className="mt-1 w-full border border-sandy-dark px-3 py-2 outline-none focus:border-deep-blue"
+              />
+            </label>
+            {error && <p className="text-sm text-red-700">{error}</p>}
+            <button
+              type="submit"
+              disabled={pending || otpCode.length !== 6}
+              className="bg-deep-blue px-5 py-3 text-sm text-white disabled:opacity-60"
+            >
+              {t("otpSubmit")}
+            </button>
+          </form>
         ) : (
           <form
             action="/api/guest"

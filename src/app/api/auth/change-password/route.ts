@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
-import { hash, compare } from "bcryptjs";
+import { isMongoConfigured } from "@/lib/mongo";
+import { updateAdminPassword } from "@/lib/identity";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getAdminSession();
-    if (!session) {
+    if (!session?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!isMongoConfigured()) {
+      return NextResponse.json(
+        { error: "Authentication is temporarily unavailable" },
+        { status: 503 },
+      );
     }
 
     const body = await request.json();
@@ -27,31 +34,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify current password
-    const admin = await prisma.adminUser.findUnique({
-      where: { id: session.id },
-    });
-
-    if (!admin) {
-      return NextResponse.json({ error: "Admin not found" }, { status: 404 });
-    }
-
-    const isValid = await compare(currentPassword, admin.password);
-    if (!isValid) {
+    const result = await updateAdminPassword(
+      String(session.email).toLowerCase(),
+      String(currentPassword),
+      String(newPassword),
+    );
+    if (result === "ok") return NextResponse.json({ success: true });
+    if (result === "invalid") {
       return NextResponse.json(
         { error: "Current password is incorrect" },
         { status: 403 },
       );
     }
-
-    // Update password
-    const hashedPassword = await hash(newPassword, 12);
-    await prisma.adminUser.update({
-      where: { id: session.id },
-      data: { password: hashedPassword },
-    });
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ error: "Admin not found" }, { status: 404 });
   } catch (error) {
     console.error("Password change error:", error);
     return NextResponse.json(

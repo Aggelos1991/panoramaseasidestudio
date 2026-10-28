@@ -1,4 +1,11 @@
-import { prisma } from "@/lib/prisma";
+import {
+  countBookings,
+  countExternalBookings,
+  listBookings,
+  listExternalBookings,
+  listRooms,
+  sumBookingTotals,
+} from "@/lib/store";
 import { CalendarCheck, Euro, BedDouble, TrendingUp, Calendar, Users, Link2 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
@@ -26,64 +33,46 @@ async function getStats() {
     allBookings,
     recentExternal,
   ] = await Promise.all([
-    prisma.booking.count({
-      where: {
-        status: "CONFIRMED",
-        createdAt: { gte: monthStart, lte: monthEnd },
-      },
+    countBookings({
+      status: "CONFIRMED",
+      createdFrom: monthStart,
+      createdTo: monthEnd,
     }),
-    prisma.booking.aggregate({
-      where: {
-        status: "CONFIRMED",
-        createdAt: { gte: monthStart, lte: monthEnd },
-      },
-      _sum: { totalPrice: true },
+    sumBookingTotals({
+      status: "CONFIRMED",
+      createdFrom: monthStart,
+      createdTo: monthEnd,
     }),
-    prisma.room.count({ where: { isActive: true } }),
-    prisma.externalBooking.count({
-      where: {
-        createdAt: { gte: monthStart, lte: monthEnd },
-      },
+    listRooms({ activeOnly: true }).then((rooms) => rooms.length),
+    countExternalBookings({
+      createdFrom: monthStart,
+      createdTo: monthEnd,
     }),
-    prisma.booking.count({
-      where: {
-        status: "CONFIRMED",
-        checkIn: { gte: todayStart, lte: todayEnd },
-      },
+    countBookings({
+      status: "CONFIRMED",
+      checkInFrom: todayStart,
+      checkInTo: todayEnd,
     }),
-    prisma.externalBooking.count({
-      where: {
-        checkIn: { gte: todayStart, lte: todayEnd },
-      },
+    countExternalBookings({
+      checkInFrom: todayStart,
+      checkInTo: todayEnd,
     }),
-    prisma.booking.count({
-      where: {
-        status: "CONFIRMED",
-        checkOut: { gte: todayStart, lte: todayEnd },
-      },
+    countBookings({
+      status: "CONFIRMED",
+      checkOutFrom: todayStart,
+      checkOutTo: todayEnd,
     }),
-    prisma.externalBooking.count({
-      where: {
-        checkOut: { gte: todayStart, lte: todayEnd },
-      },
+    countExternalBookings({
+      checkOutFrom: todayStart,
+      checkOutTo: todayEnd,
     }),
-    // All bookings for the table
-    prisma.booking.findMany({
-      include: { room: true },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    }),
-    // Recent external bookings
-    prisma.externalBooking.findMany({
-      include: { room: true, channel: true },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
+    listBookings({}, { includeRoom: true, take: 100 }),
+    listExternalBookings({ take: 50 }),
   ]);
 
   return {
     bookingsMonth,
-    revenue: Number(revenueMonth._sum.totalPrice || 0),
+    revenue: revenueMonth,
     roomCount,
     channelBookingsMonth,
     todayCheckIns: todayCheckInsInternal + todayCheckInsExternal,
@@ -139,7 +128,7 @@ export default async function AdminDashboardPage() {
     nights: b.nights,
     totalPrice: String(b.totalPrice),
     status: b.status,
-    room: { nameEn: b.room.nameEn },
+    room: { nameEn: b.room?.nameEn || "Room" },
   }));
 
   const serializedExternal = stats.recentExternal.map((eb) => ({
@@ -147,8 +136,8 @@ export default async function AdminDashboardPage() {
     summary: eb.summary,
     checkIn: eb.checkIn.toISOString(),
     checkOut: eb.checkOut.toISOString(),
-    roomName: eb.room.nameEn,
-    platform: eb.channel.platform,
+    roomName: eb.room?.nameEn || "Room",
+    platform: eb.channel?.platform || "OTHER",
   }));
 
   return (

@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
 import { eachDayOfInterval, differenceInDays } from "date-fns";
 import { parseIntArray } from "@/lib/json-array";
+import { findRoom, listPricingRulesForStay } from "@/lib/store";
 
 /**
  * Calculate the total price for a room stay server-side.
@@ -18,36 +18,26 @@ export async function calculateStayPrice(
     throw new Error("Check-out must be after check-in");
   }
 
-  const room = await prisma.room.findUnique({
-    where: { id: roomId },
-    include: {
-      pricingRules: {
-        where: {
-          startDate: { lte: checkOutDate },
-          endDate: { gte: checkInDate },
-        },
-      },
-    },
-  });
-
+  const room = await findRoom(roomId);
   if (!room) {
     throw new Error("Room not found");
   }
 
+  const pricingRules = await listPricingRulesForStay(room.id, checkInDate, checkOutDate);
+
   const stayDays = eachDayOfInterval({
     start: checkInDate,
-    end: new Date(checkOutDate.getTime() - 86400000), // exclude checkout day
+    end: new Date(checkOutDate.getTime() - 86400000),
   });
 
   let totalPrice = 0;
   for (const day of stayDays) {
-    const dayOfWeek = day.getDay(); // 0=Sun..6=Sat
+    const dayOfWeek = day.getDay();
 
-    const matchingRules = room.pricingRules.filter(
+    const matchingRules = pricingRules.filter(
       (rule) => day >= rule.startDate && day <= rule.endDate,
     );
 
-    // Day-specific rule takes priority over general rule
     const daySpecificRule = matchingRules.find((rule) => {
       const days = parseIntArray(rule.daysOfWeek);
       return days.length > 0 && days.includes(dayOfWeek);

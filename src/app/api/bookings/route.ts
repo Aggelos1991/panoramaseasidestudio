@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { generateReferenceNumber } from "@/lib/utils";
+import { findUserById } from "@/lib/identity";
+import {
+  countBookings,
+  isStoreUnavailable,
+  listBookings,
+  referenceExists,
+  reserveBooking,
+} from "@/lib/store";
 import { encrypt, decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
 import { getAdminSession, getGuestSession } from "@/lib/auth";
 import { calculateStayPrice } from "@/lib/pricing";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { validateBookingRequest } from "@/lib/stay-rules";
 
 // 10 requests per minute — booking creation
 const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
@@ -36,102 +44,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure dates are parsed as UTC midnight to match DB storage
-    // Handle both date-only ("2026-04-01") and ISO datetime strings
     const ciStr = String(checkIn).split("T")[0];
     const coStr = String(checkOut).split("T")[0];
     const checkInDate = new Date(ciStr + "T00:00:00.000Z");
     const checkOutDate = new Date(coStr + "T00:00:00.000Z");
 
-    // Server-side price calculation — never trust client-submitted prices
+    const rules = validateBookingRequest({
+      guests,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      firstName,
+      lastName,
+      email,
+      phone,
+      country,
+      specialRequests,
+      dateOfBirth: body.dateOfBirth,
+      age: body.age,
+      pets: body.pets,
+      arrivalTime: body.arrivalTime,
+      departureTime: body.departureTime,
+    });
+    if (!rules.ok) {
+      return NextResponse.json({ error: rules.error }, { status: rules.status });
+    }
+
     const { totalPrice, nights } = await calculateStayPrice(
       roomId,
       checkInDate,
       checkOutDate,
     );
 
+    const guest = rules.guest;
     const guestSession = await getGuestSession();
+    let guestId: string | null = null;
+    if (guestSession?.id) {
+      const linked = await findUserById(String(guestSession.id)).catch(() => null);
+      if (linked?.role === "guest" && linked.status === "active") guestId = String(linked._id);
+    }
 
-    // Use a transaction to prevent double booking
-    const booking = await prisma.$transaction(async (tx) => {
-      const room = await tx.room.findUnique({
-        where: { id: roomId },
-      });
+    let referenceNumber = generateReferenceNumber();
+    for (let attempts = 0; attempts < 10; attempts++) {
+      if (!(await referenceExists(referenceNumber))) break;
+      referenceNumber = generateReferenceNumber();
+    }
 
-      if (!room) {
-        throw new Error("Room not found");
-      }
-
-      const [overlappingBookings, overlappingExternal] = await Promise.all([
-        tx.booking.count({
-          where: {
-            roomId,
-            status: "CONFIRMED",
-            checkIn: { lt: checkOutDate },
-            checkOut: { gt: checkInDate },
-          },
-        }),
-        tx.externalBooking.count({
-          where: {
-            roomId,
-            checkIn: { lt: checkOutDate },
-            checkOut: { gt: checkInDate },
-          },
-        }),
-      ]);
-
-      if (overlappingBookings + overlappingExternal >= room.totalUnits) {
-        throw new Error("Room no longer available");
-      }
-
-      const blockedDates = await tx.blockedDate.count({
-        where: {
-          roomId,
-          date: {
-            gte: checkInDate,
-            lt: checkOutDate,
-          },
-        },
-      });
-
-      if (blockedDates > 0) {
-        throw new Error("Some dates are blocked");
-      }
-
-      let referenceNumber: string;
-      let attempts = 0;
-      do {
-        referenceNumber = generateReferenceNumber();
-        const existing = await tx.booking.findUnique({
-          where: { referenceNumber },
-        });
-        if (!existing) break;
-        attempts++;
-      } while (attempts < 10);
-
-      return tx.booking.create({
-        data: {
-          referenceNumber,
-          roomId,
-          checkIn: checkInDate,
-          checkOut: checkOutDate,
-          nights,
-          guests,
-          totalPrice,
-          guestFirstName: encrypt(firstName),
-          guestLastName: encrypt(lastName),
-          guestEmail: encrypt(email),
-          guestPhone: phone ? encrypt(phone) : null,
-          guestCountry: country ? encrypt(country) : null,
-          specialRequests: specialRequests ? encrypt(specialRequests) : null,
-          gdprConsent: true,
-          gdprConsentAt: new Date(),
-          locale,
-          guestId: guestSession?.id,
-          status: "CONFIRMED",
-          paymentStatus: "PAID",
-        },
-      });
+    const booking = await reserveBooking({
+      referenceNumber,
+      roomId,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      nights,
+      guests: guest.guests,
+      totalPrice,
+      guestFirstName: encrypt(guest.firstName),
+      guestLastName: encrypt(guest.lastName),
+      guestEmail: encrypt(guest.email),
+      guestPhone: guest.phone ? encrypt(guest.phone) : null,
+      guestCountry: guest.country ? encrypt(guest.country) : null,
+      specialRequests: guest.specialRequests ? encrypt(guest.specialRequests) : null,
+      locale,
+      guestId,
+      paymentMethod: null,
+      paymentNotes: "check-in from 14:00 until midnight; check-out by 12:00",
     });
 
     return NextResponse.json({
@@ -143,11 +118,19 @@ export async function POST(request: NextRequest) {
     const message =
       error instanceof Error ? error.message : "Failed to create booking";
 
+    if (isStoreUnavailable(error)) {
+      return NextResponse.json({ error: "Bookings are temporarily unavailable" }, { status: 503 });
+    }
+
     if (
       message === "Room no longer available" ||
-      message === "Some dates are blocked"
+      message === "Some dates are blocked" ||
+      message === "Each room allows at most 2 guests"
     ) {
-      return NextResponse.json({ error: message }, { status: 409 });
+      return NextResponse.json(
+        { error: message },
+        { status: message === "Each room allows at most 2 guests" ? 400 : 409 },
+      );
     }
 
     return NextResponse.json(
@@ -172,18 +155,15 @@ export async function GET(request: NextRequest) {
       100,
     );
 
-    const where: Record<string, unknown> = {};
-    if (status) where.status = status;
+    const where = status ? { status } : {};
 
     const [rawBookings, total] = await Promise.all([
-      prisma.booking.findMany({
-        where,
-        include: { room: true },
-        orderBy: { createdAt: "desc" },
+      listBookings(where, {
+        includeRoom: true,
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.booking.count({ where }),
+      countBookings(where),
     ]);
 
     const bookings = rawBookings.map((b) =>

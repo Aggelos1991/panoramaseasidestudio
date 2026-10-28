@@ -4,7 +4,7 @@ export const bookingFormSchema = z.object({
   roomId: z.string().min(1, "Please select a room"),
   checkIn: z.string().min(1, "Check-in date is required"),
   checkOut: z.string().min(1, "Check-out date is required"),
-  guests: z.number().min(1, "At least 1 guest required").max(10),
+  guests: z.number().min(1, "At least 1 guest required").max(2, "Each room allows at most 2 guests"),
 });
 
 export const guestDetailsSchema = z.object({
@@ -14,6 +14,7 @@ export const guestDetailsSchema = z.object({
   phone: z.string().optional(),
   country: z.string().optional(),
   specialRequests: z.string().optional(),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date of birth"),
 });
 
 export const contactFormSchema = z.object({

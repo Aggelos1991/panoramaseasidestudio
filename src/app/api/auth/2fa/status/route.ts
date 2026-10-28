@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
+import { findUserById } from "@/lib/identity";
 
 export async function GET() {
   try {
@@ -9,13 +9,10 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const admin = await prisma.adminUser.findUnique({
-      where: { id: session.id },
-      select: { twoFactorEnabled: true },
-    });
+    const admin = await findUserById(String(session.id));
 
     return NextResponse.json({
-      enabled: admin?.twoFactorEnabled ?? false,
+      enabled: admin?.role === "admin" && Boolean(admin.twoFactorEnabled),
     });
   } catch (error) {
     console.error("2FA status error:", error);

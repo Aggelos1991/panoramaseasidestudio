@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { parseStringArray, toJsonArray } from "@/lib/json-array";
+import { parseStringArray } from "@/lib/json-array";
+import {
+  countBookingsForRoom,
+  deactivateRoom,
+  deleteRoom,
+  findRoom,
+  listPricingRules,
+  updateRoom,
+} from "@/lib/store";
 import { getAdminSession } from "@/lib/auth";
 import { parseTourUrl } from "@/lib/tours";
 
@@ -12,21 +19,18 @@ export async function GET(
     const { id } = await params;
     // Only include pricing rules for authenticated admin requests
     const session = await getAdminSession();
-    const room = await prisma.room.findUnique({
-      where: { id },
-      include: {
-        images: { orderBy: { sortOrder: "asc" } },
-        ...(session ? { pricingRules: { orderBy: { startDate: "asc" } } } : {}),
-      },
-    });
+    const room = await findRoom(id);
 
     if (!room) {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
+    const pricingRules = session ? await listPricingRules(room.id) : undefined;
+
     return NextResponse.json({
       ...room,
       amenities: parseStringArray(room.amenities),
+      ...(pricingRules ? { pricingRules } : {}),
     });
   } catch (error) {
     console.error("Room fetch error:", error);
@@ -62,7 +66,7 @@ export async function PATCH(
     for (const field of ALLOWED_FIELDS) {
       if (body[field] !== undefined) data[field] = body[field];
     }
-    if (amenities !== undefined) data.amenities = toJsonArray(amenities);
+    if (amenities !== undefined) data.amenities = amenities;
     if (body.tourUrl !== undefined) {
       const parsedTour = parseTourUrl(body.tourUrl);
       if ("error" in parsedTour) {
@@ -71,33 +75,7 @@ export async function PATCH(
       data.tourUrl = parsedTour.tourUrl;
     }
 
-    const room = await prisma.room.update({
-      where: { id },
-      data,
-    });
-
-    // If images provided, replace all images
-    if (images !== undefined) {
-      await prisma.roomImage.deleteMany({ where: { roomId: id } });
-      if (images.length > 0) {
-        await prisma.roomImage.createMany({
-          data: images.map(
-            (img: { url: string; alt?: string; isPrimary?: boolean }, i: number) => ({
-              roomId: id,
-              url: img.url,
-              alt: img.alt || room.nameEn,
-              isPrimary: img.isPrimary || i === 0,
-              sortOrder: i,
-            }),
-          ),
-        });
-      }
-    }
-
-    const updated = await prisma.room.findUnique({
-      where: { id },
-      include: { images: { orderBy: { sortOrder: "asc" } } },
-    });
+    const updated = await updateRoom(id, data, images);
 
     return NextResponse.json(updated ? {
       ...updated,
@@ -125,19 +103,14 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if room has bookings
-    const bookingCount = await prisma.booking.count({ where: { roomId: id } });
+    const bookingCount = await countBookingsForRoom(id);
 
     if (bookingCount > 0) {
-      // Soft delete — keep room but deactivate
-      await prisma.room.update({
-        where: { id },
-        data: { isActive: false },
-      });
+      await deactivateRoom(id);
       return NextResponse.json({ deleted: false, deactivated: true });
     }
 
-    // Hard delete — no bookings, safe to remove
-    await prisma.room.delete({ where: { id } });
+    await deleteRoom(id);
     return NextResponse.json({ deleted: true });
   } catch (error) {
     console.error("Room delete error:", error);

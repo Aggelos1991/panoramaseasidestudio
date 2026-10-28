@@ -4,7 +4,6 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { guestDetailsSchema, type GuestDetailsData } from "@/lib/validators";
-import { Button } from "@/components/ui/button";
 import type { GuestDetails } from "@/app/[locale]/booking/page";
 import { useEffect, useState } from "react";
 
@@ -12,9 +11,16 @@ type Props = {
   onSubmit: (details: GuestDetails) => void;
 };
 
+const fieldClass =
+  "mt-2 w-full rounded-xl border border-black/10 bg-white/80 px-4 py-2.5 font-sans text-sm text-[#1c1916] outline-none transition-colors focus:border-[#1c1916]";
+
+const labelClass =
+  "block font-sans text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#1c1916]";
+
 export function GuestForm({ onSubmit }: Props) {
   const t = useTranslations("booking");
   const [gdprConsent, setGdprConsent] = useState(false);
+  const [noPets, setNoPets] = useState(false);
   const {
     register,
     handleSubmit,
@@ -37,115 +43,129 @@ export function GuestForm({ onSubmit }: Props) {
   }, [setValue]);
 
   function onFormSubmit(data: GuestDetailsData) {
-    if (!gdprConsent) return;
-    onSubmit(data);
+    if (!gdprConsent || !noPets) return;
+    onSubmit({ ...data, pets: false });
   }
 
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-soft sm:p-8">
-      <h3 className="mb-6 font-serif text-xl font-semibold text-deep-blue">
-        {t("step3")}
-      </h3>
+    <div className="glass-card rounded-[28px] p-6 sm:p-8">
+      <h2 className="font-film text-4xl font-medium leading-none tracking-tight text-[#1c1916]">
+        {t("yourDetails")}
+      </h2>
 
-      <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-5">
+      <form onSubmit={handleSubmit(onFormSubmit)} className="mt-8 space-y-5">
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="guest-first-name" className={labelClass}>
               {t("firstName")} *
             </label>
-            <input
-              {...register("firstName")}
-              className="w-full rounded-lg border border-sandy-dark bg-white px-4 py-2.5 text-sm transition-colors focus:border-terracotta focus:outline-none focus:ring-2 focus:ring-terracotta/20"
-            />
+            <input id="guest-first-name" {...register("firstName")} className={fieldClass} />
             {errors.firstName && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.firstName.message}
-              </p>
+              <p className="mt-1 text-xs text-red-700">{errors.firstName.message}</p>
             )}
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="guest-last-name" className={labelClass}>
               {t("lastName")} *
             </label>
-            <input
-              {...register("lastName")}
-              className="w-full rounded-lg border border-sandy-dark bg-white px-4 py-2.5 text-sm transition-colors focus:border-terracotta focus:outline-none focus:ring-2 focus:ring-terracotta/20"
-            />
+            <input id="guest-last-name" {...register("lastName")} className={fieldClass} />
             {errors.lastName && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.lastName.message}
-              </p>
+              <p className="mt-1 text-xs text-red-700">{errors.lastName.message}</p>
             )}
           </div>
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="guest-email" className={labelClass}>
             {t("email")} *
           </label>
-          <input
-            {...register("email")}
-            type="email"
-            className="w-full rounded-lg border border-sandy-dark bg-white px-4 py-2.5 text-sm transition-colors focus:border-terracotta focus:outline-none focus:ring-2 focus:ring-terracotta/20"
-          />
+          <input id="guest-email" {...register("email")} type="email" className={fieldClass} />
           {errors.email && (
-            <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+            <p className="mt-1 text-xs text-red-700">{errors.email.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="guest-birth" className={labelClass}>
+            {t("dateOfBirth")} *
+          </label>
+          <input
+            id="guest-birth"
+            {...register("dateOfBirth")}
+            type="date"
+            max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().slice(0, 10)}
+            className={fieldClass}
+          />
+          <p className="mt-1 text-xs text-[#1c1916]/55">{t("minAgeNote")}</p>
+          {errors.dateOfBirth && (
+            <p className="mt-1 text-xs text-red-700">{errors.dateOfBirth.message}</p>
           )}
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="guest-phone" className={labelClass}>
               {t("phone")}
             </label>
-            <input
-              {...register("phone")}
-              type="tel"
-              className="w-full rounded-lg border border-sandy-dark bg-white px-4 py-2.5 text-sm transition-colors focus:border-terracotta focus:outline-none focus:ring-2 focus:ring-terracotta/20"
-            />
+            <input id="guest-phone" {...register("phone")} type="tel" className={fieldClass} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="guest-country" className={labelClass}>
               {t("country")}
             </label>
-            <input
-              {...register("country")}
-              className="w-full rounded-lg border border-sandy-dark bg-white px-4 py-2.5 text-sm transition-colors focus:border-terracotta focus:outline-none focus:ring-2 focus:ring-terracotta/20"
-            />
+            <input id="guest-country" {...register("country")} className={fieldClass} />
           </div>
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="guest-requests" className={labelClass}>
             {t("specialRequests")}
           </label>
           <textarea
+            id="guest-requests"
             {...register("specialRequests")}
             rows={3}
             placeholder={t("specialRequestsPlaceholder")}
-            className="w-full resize-none rounded-lg border border-sandy-dark bg-white px-4 py-2.5 text-sm transition-colors focus:border-terracotta focus:outline-none focus:ring-2 focus:ring-terracotta/20"
+            className={`${fieldClass} resize-none`}
           />
         </div>
 
-        {/* GDPR Consent */}
-        <div className="rounded-lg border border-sandy-dark bg-sandy-light/50 p-4">
-          <label className="flex items-start gap-3 cursor-pointer">
+        <div className="rounded-2xl border border-black/10 bg-white/40 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={noPets}
+              onChange={(e) => setNoPets(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-black/20 accent-[#1c1916]"
+            />
+            <span className="text-xs leading-relaxed text-[#1c1916]/75">
+              {t("noPets")} *
+            </span>
+          </label>
+        </div>
+
+        <div className="rounded-2xl border border-black/10 bg-white/40 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
               checked={gdprConsent}
               onChange={(e) => setGdprConsent(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-terracotta focus:ring-terracotta"
+              className="mt-0.5 h-4 w-4 rounded border-black/20 accent-[#1c1916]"
             />
-            <span className="text-xs text-gray-600 leading-relaxed">
+            <span className="text-xs leading-relaxed text-[#1c1916]/75">
               {t("gdprConsent")} *
             </span>
           </label>
         </div>
 
         <div className="flex justify-end pt-2">
-          <Button type="submit" size="lg" disabled={!gdprConsent}>
-            {t("proceedToDetails")}
-          </Button>
+          <button
+            type="submit"
+            disabled={!gdprConsent || !noPets}
+            className="inline-flex h-12 items-center justify-center bg-[#1c1916] px-6 font-sans text-sm font-semibold tracking-wide text-[#f3efe8] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t("reviewStay")}
+          </button>
         </div>
       </form>
     </div>

@@ -2,48 +2,43 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { CalendarDays, BedDouble, UserCircle, CheckCircle } from "lucide-react";
+import { CalendarDays, UserCircle, CheckCircle } from "lucide-react";
 
 const steps = [
-  { key: "step1", icon: CalendarDays },
-  { key: "step2", icon: BedDouble },
-  { key: "step3", icon: UserCircle },
-  { key: "step4", icon: CheckCircle },
+  { key: "flowStay", icon: CalendarDays },
+  { key: "flowDetails", icon: UserCircle },
+  { key: "flowReview", icon: CheckCircle },
 ] as const;
 
 export function BookingSteps({ currentStep }: { currentStep: number }) {
   const t = useTranslations("booking");
 
   return (
-    <div className="flex items-center justify-center">
+    <ol className="flex items-center justify-center">
       {steps.map(({ key, icon: Icon }, i) => {
         const stepNum = i + 1;
         const isActive = stepNum === currentStep;
         const isCompleted = stepNum < currentStep;
 
         return (
-          <div key={key} className="flex items-center">
+          <li key={key} className="flex items-center">
             <div className="flex flex-col items-center">
               <div
                 className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all sm:h-12 sm:w-12",
+                  "flex h-10 w-10 items-center justify-center rounded-full border transition-colors sm:h-11 sm:w-11",
                   isActive
-                    ? "border-terracotta bg-terracotta text-white"
+                    ? "border-[#1c1916] bg-[#1c1916] text-[#f3efe8]"
                     : isCompleted
-                      ? "border-terracotta bg-terracotta/10 text-terracotta"
-                      : "border-gray-300 bg-white text-gray-400",
+                      ? "border-[#1c1916] bg-white/70 text-[#1c1916]"
+                      : "border-black/15 bg-white/40 text-[#1c1916]/35",
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-4 w-4" aria-hidden="true" />
               </div>
               <span
                 className={cn(
-                  "mt-2 hidden text-xs font-medium sm:block",
-                  isActive
-                    ? "text-terracotta"
-                    : isCompleted
-                      ? "text-terracotta/70"
-                      : "text-gray-400",
+                  "mt-2 max-w-[4.75rem] text-center text-[0.65rem] font-medium uppercase tracking-[0.14em] sm:max-w-none sm:text-[0.68rem] sm:tracking-[0.16em]",
+                  isActive ? "text-[#1c1916]" : "text-[#1c1916]/45",
                 )}
               >
                 {t(key)}
@@ -52,14 +47,15 @@ export function BookingSteps({ currentStep }: { currentStep: number }) {
             {i < steps.length - 1 && (
               <div
                 className={cn(
-                  "mx-2 h-0.5 w-8 sm:mx-4 sm:w-16",
-                  stepNum < currentStep ? "bg-terracotta" : "bg-gray-300",
+                  "mx-3 mb-6 h-px w-8 sm:mx-5 sm:w-16",
+                  stepNum < currentStep ? "bg-[#1c1916]" : "bg-black/15",
                 )}
+                aria-hidden="true"
               />
             )}
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 }

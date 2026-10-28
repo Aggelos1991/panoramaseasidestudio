@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { prisma } from "@/lib/prisma";
+import { listRooms } from "@/lib/store";
 import { getLocalizedField } from "@/lib/utils";
 import { PLACEHOLDER_IMAGES } from "@/lib/constants";
 import { LISTING_ROOMS } from "@/lib/listing";
@@ -52,16 +52,7 @@ type RoomListItem = {
 };
 
 async function getRooms(): Promise<RoomListItem[]> {
-  const rooms = await prisma.room.findMany({
-    where: { isActive: true },
-    include: {
-      images: {
-        where: { isPrimary: true },
-        take: 1,
-      },
-    },
-    orderBy: { sortOrder: "asc" },
-  });
+  const rooms = await listRooms({ activeOnly: true });
 
   return rooms.map((room) => ({
     slug: room.slug,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
+import { findBooking, updateBooking } from "@/lib/store";
 import { getAdminSession } from "@/lib/auth";
 
 export async function GET(
@@ -14,10 +14,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: { room: true },
-    });
+    const booking = await findBooking({ id }, true);
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
@@ -72,10 +69,13 @@ export async function PATCH(
       data.paymentStatus = paymentStatus;
     }
 
-    const booking = await prisma.booking.update({
-      where: { id },
-      data,
+    const booking = await updateBooking(id, data as {
+      status?: "CONFIRMED" | "CANCELLED";
+      paymentStatus?: "PAID" | "REFUNDED";
     });
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
 
     const decrypted = decryptPII(
       booking as unknown as Record<string, unknown>,

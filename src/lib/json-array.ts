@@ -1,7 +1,5 @@
 /**
- * Utility for handling JSON-encoded arrays stored as Text in MySQL.
- * PostgreSQL supports native String[] / Int[] but MySQL does not,
- * so we store them as JSON text and parse at the application layer.
+ * Reads amenity and day-of-week lists stored either as arrays or as JSON text.
  */
 
 /** Parse a JSON text column back to a string array. Returns [] on failure. */

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { parseIntArray, toJsonArray } from "@/lib/json-array";
+import { parseIntArray } from "@/lib/json-array";
+import { createPricingRule, deletePricingRule, listPricingRules } from "@/lib/store";
 import { getAdminSession } from "@/lib/auth";
 
 // GET — list all pricing rules (optionally filter by roomId)
@@ -13,13 +13,7 @@ export async function GET(request: NextRequest) {
 
     const roomId = request.nextUrl.searchParams.get("roomId");
 
-    const rules = await prisma.pricingRule.findMany({
-      where: roomId ? { roomId } : undefined,
-      include: {
-        room: { select: { nameEn: true, slug: true } },
-      },
-      orderBy: [{ startDate: "asc" }],
-    });
+    const rules = await listPricingRules(roomId);
 
     const parsed = rules.map((rule) => ({
       ...rule,
@@ -80,18 +74,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const rule = await prisma.pricingRule.create({
-      data: {
-        name,
-        roomId,
-        startDate: start,
-        endDate: end,
-        pricePerNight: Number(pricePerNight),
-        daysOfWeek: toJsonArray(daysOfWeek || []),
-      },
-      include: {
-        room: { select: { nameEn: true, slug: true } },
-      },
+    const rule = await createPricingRule({
+      name,
+      roomId,
+      startDate: start,
+      endDate: end,
+      pricePerNight: Number(pricePerNight),
+      daysOfWeek: daysOfWeek || [],
     });
 
     return NextResponse.json({
@@ -123,7 +112,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
-    await prisma.pricingRule.delete({ where: { id } });
+    await deletePricingRule(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

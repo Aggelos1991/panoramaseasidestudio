@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { isBtcpayConfigured } from "@/lib/btcpay";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ async function isPaypalActive(): Promise<boolean> {
 }
 
 export async function GET() {
-  const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY);
+  const stripeConfigured = isStripeConfigured();
   return NextResponse.json({
     card: stripeConfigured,
     wallets: stripeConfigured, // Apple Pay / Google Pay via Stripe Checkout

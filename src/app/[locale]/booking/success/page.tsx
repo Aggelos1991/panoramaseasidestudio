@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
-import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
+import { isStripeConfigured, stripe } from "@/lib/stripe";
+import { findBooking } from "@/lib/store";
+import { chargeMatchesCents, markBookingPaid } from "@/lib/booking-payment";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,18 +32,9 @@ export default async function BookingSuccessPage({ searchParams }: Props) {
   // Look up booking by reference number
   if (ref) {
     try {
-      booking = await prisma.booking.findUnique({
-        where: { referenceNumber: ref },
-        include: {
-          room: {
-            include: {
-              images: { take: 1, orderBy: { sortOrder: "asc" } },
-            },
-          },
-        },
-      });
+      booking = await findBooking({ referenceNumber: ref }, true);
       if (booking?.room?.images?.[0]) {
-        roomImage = booking.room.images[0].url;
+        roomImage = booking.room?.images?.[0]?.url ?? null;
       }
     } catch {
       // DB not available
@@ -50,35 +42,31 @@ export default async function BookingSuccessPage({ searchParams }: Props) {
   }
 
   // If we have a Stripe session, confirm payment and update booking
-  if (session_id && booking) {
+  if (session_id && booking && isStripeConfigured()) {
     try {
       const session = await stripe.checkout.sessions.retrieve(session_id);
-      if (session.payment_status === "paid") {
-        paymentConfirmed = true;
-        // Update booking if still pending
-        if (booking.status !== "CONFIRMED") {
-          await prisma.booking.update({
-            where: { id: booking.id },
-            data: {
-              status: "CONFIRMED",
-              paymentStatus: "PAID",
-              paymentMethod: "stripe",
-              stripePaymentId: session.payment_intent as string,
-            },
+      if (session.livemode) {
+        paymentConfirmed = false;
+      } else {
+      const amountOk = chargeMatchesCents(Number(booking.totalPrice), session.amount_total);
+      const belongs =
+        session.metadata?.bookingId === booking.id || booking.stripeSessionId === session.id;
+      if (
+        session.payment_status === "paid" &&
+        session.currency === "eur" &&
+        amountOk &&
+        belongs
+      ) {
+        if (booking.paymentStatus !== "PAID") {
+          await markBookingPaid(booking.id, {
+            paymentMethod: "card",
+            stripePaymentId:
+              typeof session.payment_intent === "string" ? session.payment_intent : null,
           });
-          booking = await prisma.booking.findUnique({
-            where: { id: booking.id },
-            include: {
-              room: {
-                include: {
-                  images: { take: 1, orderBy: { sortOrder: "asc" } },
-                },
-              },
-            },
-          });
-        } else if (booking.paymentStatus === "PAID") {
-          paymentConfirmed = true;
+          booking = await findBooking({ id: booking.id }, true);
         }
+        paymentConfirmed = booking?.paymentStatus === "PAID";
+      }
       }
     } catch {
       // Stripe session retrieval failed — still show booking info
@@ -218,7 +206,7 @@ export default async function BookingSuccessPage({ searchParams }: Props) {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Room</span>
                       <span className="font-medium text-deep-blue">
-                        {booking.room.nameEn}
+                        {booking.room?.nameEn || "Room"}
                       </span>
                     </div>
                   </div>

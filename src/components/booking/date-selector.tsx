@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { de, el, enUS } from "date-fns/locale";
 import {
   CalendarDays,
   Users,
@@ -40,8 +41,6 @@ type Props = {
   onGuestsChange: (guests: number) => void;
 };
 
-const DAY_NAMES = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
 type NightStatus = "open" | "busy" | "full" | "closed";
 
 function getMonthDays(month: Date): Date[] {
@@ -59,6 +58,8 @@ export function DateSelector({
   onGuestsChange,
 }: Props) {
   const t = useTranslations("booking");
+  const locale = useLocale();
+  const dateLocale = locale === "el" ? el : locale === "de" ? de : enUS;
   const isMobile = useMediaQuery("(max-width: 639px)");
   const [currentMonth, setCurrentMonth] = useState(() =>
     checkIn ? startOfMonth(checkIn) : new Date(),
@@ -103,6 +104,13 @@ export function DateSelector({
     }
     return false;
   }
+
+  const dayNames = useMemo(() => {
+    const start = startOfWeek(new Date(2026, 0, 4), { weekStartsOn: 0 });
+    return Array.from({ length: 7 }, (_, index) =>
+      format(addDays(start, index), "EEEEEE", { locale: dateLocale }),
+    );
+  }, [dateLocale]);
 
   const month1Days = useMemo(() => getMonthDays(currentMonth), [currentMonth]);
   const month2 = addMonths(currentMonth, 1);
@@ -171,17 +179,17 @@ export function DateSelector({
       <div className="flex-1">
         {/* Month header */}
         <div className="mb-4 text-center">
-          <h3 className="text-sm font-bold tracking-wide text-deep-blue">
-            {format(monthDate, "MMMM yyyy")}
+          <h3 className="font-film text-2xl font-medium tracking-tight text-[#1c1916]">
+            {format(monthDate, "MMMM yyyy", { locale: dateLocale })}
           </h3>
         </div>
 
         {/* Day names */}
         <div className="mb-1 grid grid-cols-7">
-          {DAY_NAMES.map((name) => (
+          {dayNames.map((name, index) => (
             <div
-              key={name}
-              className="py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+              key={`${name}-${index}`}
+              className="py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-[#1c1916]/45"
             >
               {name}
             </div>
@@ -213,9 +221,9 @@ export function DateSelector({
                   className={cn(
                     "relative flex h-10 items-center justify-center sm:h-11",
                     // Range background
-                    inRange && "bg-terracotta/8",
-                    rangeStart && checkOut && "rounded-l-full bg-terracotta/8",
-                    rangeEnd && checkIn && "rounded-r-full bg-terracotta/8",
+                    inRange && "bg-[#1c1916]/8",
+                    rangeStart && checkOut && "rounded-l-full bg-[#1c1916]/8",
+                    rangeEnd && checkIn && "rounded-r-full bg-[#1c1916]/8",
                     // When both start and end
                     rangeStart &&
                       rangeEnd &&
@@ -244,22 +252,15 @@ export function DateSelector({
                       // Default
                       !selected &&
                         !disabled &&
-                        "text-deep-blue hover:bg-terracotta/12 hover:text-terracotta",
-                      // Today
-                      today &&
-                        !selected &&
-                        "font-bold text-terracotta",
-                      // Selected (start or end)
-                      selected &&
-                        "bg-terracotta text-white shadow-md shadow-terracotta/30 font-bold",
-                      // Disabled
-                      disabled &&
-                        "cursor-not-allowed text-gray-200",
+                        "text-[#1c1916] hover:bg-black/6",
+                      today && !selected && "font-semibold ring-1 ring-[#1c1916]/35",
+                      selected && "bg-[#1c1916] font-semibold text-[#f3efe8]",
+                      disabled && "cursor-not-allowed text-[#1c1916]/20",
                     )}
                   >
                     {format(day, "d")}
                     {status === "busy" && !selected && (
-                      <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[#003580]" />
+                      <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[#8a6232]" />
                     )}
                   </button>
                 </div>
@@ -272,9 +273,8 @@ export function DateSelector({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-elegant">
-      {/* Top bar — check-in, check-out, guests, nights */}
-      <div className="border-b border-gray-100 bg-gradient-to-r from-cream to-white px-5 py-4 sm:px-6">
+    <div className="glass-card overflow-hidden rounded-[28px]">
+      <div className="border-b border-black/10 bg-white/35 px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-center gap-3 sm:gap-0">
           {/* Check-in display */}
           <button
@@ -283,29 +283,30 @@ export function DateSelector({
             className={cn(
               "flex-1 min-w-[120px] rounded-xl px-3 py-2.5 text-left transition-all sm:px-4",
               selecting === "checkIn"
-                ? "bg-terracotta/8 ring-2 ring-terracotta/30"
-                : "hover:bg-gray-50",
+                ? "bg-white/70 ring-2 ring-[#1c1916]/20"
+                : "hover:bg-white/50",
             )}
           >
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-terracotta/70">
+            <span className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#1c1916]/55">
               {t("checkIn")}
             </span>
             <div className="mt-0.5 flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-terracotta" />
+              <CalendarDays className="h-4 w-4 text-[#1c1916]" aria-hidden="true" />
               <span
                 className={cn(
-                  "text-base font-bold",
-                  checkIn ? "text-deep-blue" : "text-gray-300",
+                  "text-base font-medium",
+                  checkIn ? "text-[#1c1916]" : "text-[#1c1916]/28",
                 )}
               >
-                {checkIn ? format(checkIn, "MMM dd, yyyy") : "Select date"}
+                {checkIn
+                  ? format(checkIn, "d MMM yyyy", { locale: dateLocale })
+                  : t("selectDate")}
               </span>
             </div>
           </button>
 
-          {/* Arrow */}
-          <div className="hidden sm:flex items-center px-2">
-            <ArrowRight className="h-4 w-4 text-gray-300" />
+          <div className="hidden items-center px-2 sm:flex">
+            <ArrowRight className="h-4 w-4 text-[#1c1916]/28" aria-hidden="true" />
           </div>
 
           {/* Check-out display */}
@@ -315,58 +316,58 @@ export function DateSelector({
             className={cn(
               "flex-1 min-w-[120px] rounded-xl px-3 py-2.5 text-left transition-all sm:px-4",
               selecting === "checkOut"
-                ? "bg-terracotta/8 ring-2 ring-terracotta/30"
-                : "hover:bg-gray-50",
+                ? "bg-white/70 ring-2 ring-[#1c1916]/20"
+                : "hover:bg-white/50",
             )}
           >
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-terracotta/70">
+            <span className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#1c1916]/55">
               {t("checkOut")}
             </span>
             <div className="mt-0.5 flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-terracotta" />
+              <CalendarDays className="h-4 w-4 text-[#1c1916]" aria-hidden="true" />
               <span
                 className={cn(
-                  "text-base font-bold",
-                  checkOut ? "text-deep-blue" : "text-gray-300",
+                  "text-base font-medium",
+                  checkOut ? "text-[#1c1916]" : "text-[#1c1916]/28",
                 )}
               >
-                {checkOut ? format(checkOut, "MMM dd, yyyy") : "Select date"}
+                {checkOut
+                  ? format(checkOut, "d MMM yyyy", { locale: dateLocale })
+                  : t("selectDate")}
               </span>
             </div>
           </button>
 
-          {/* Divider */}
-          <div className="hidden sm:flex items-center px-1">
-            <div className="h-10 w-px bg-gray-200" />
+          <div className="hidden items-center px-1 sm:flex">
+            <div className="h-10 w-px bg-black/10" />
           </div>
 
-          {/* Guests */}
-          <div className="relative min-w-[100px] rounded-xl px-3 py-2.5 hover:bg-gray-50 sm:px-4">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-terracotta/70">
+          <div className="relative min-w-[100px] rounded-xl px-3 py-2.5 hover:bg-white/50 sm:px-4">
+            <span className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#1c1916]/55">
               {t("guests")}
             </span>
             <div className="mt-0.5 flex items-center gap-2">
-              <Users className="h-4 w-4 text-terracotta" />
+              <Users className="h-4 w-4 text-[#1c1916]" aria-hidden="true" />
               <select
                 value={guests}
                 onChange={(e) => onGuestsChange(Number(e.target.value))}
-                className="appearance-none bg-transparent text-base font-bold text-deep-blue outline-none cursor-pointer pr-5"
+                aria-label={t("guests")}
+                className="cursor-pointer appearance-none bg-transparent pr-5 text-base font-medium text-[#1c1916] outline-none"
               >
-                {[1, 2, 3, 4, 5, 6].map((n) => (
+                {[1, 2].map((n) => (
                   <option key={n} value={n}>
-                    {n} {n === 1 ? "guest" : "guests"}
+                    {t("guestCount", { count: n })}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 bottom-3 h-3.5 w-3.5 text-gray-400" />
+              <ChevronDown className="pointer-events-none absolute bottom-3 right-3 h-3.5 w-3.5 text-[#1c1916]/45" aria-hidden="true" />
             </div>
           </div>
 
-          {/* Nights badge */}
           {nights > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full bg-terracotta/10 px-3.5 py-2 text-xs font-bold text-terracotta">
-              <Moon className="h-3.5 w-3.5" />
-              {nights} {nights === 1 ? "night" : "nights"}
+            <div className="flex items-center gap-1.5 rounded-full bg-[#1c1916] px-3.5 py-2 text-xs font-medium text-[#f3efe8]">
+              <Moon className="h-3.5 w-3.5" aria-hidden="true" />
+              {t("nights", { count: nights })}
             </div>
           )}
         </div>
@@ -379,12 +380,12 @@ export function DateSelector({
           <button
             type="button"
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-deep-blue"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[#1c1916]/45 transition-colors hover:bg-black/5 hover:text-[#1c1916]"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-[#1c1916]/55">
             {selecting === "checkIn"
               ? t("selectCheckIn")
               : t("selectCheckOut")}
@@ -393,7 +394,7 @@ export function DateSelector({
           <button
             type="button"
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-deep-blue"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[#1c1916]/45 transition-colors hover:bg-black/5 hover:text-[#1c1916]"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -409,8 +410,8 @@ export function DateSelector({
           {renderMonth(currentMonth, month1Days)}
           {renderMonth(month2, month2Days)}
         </div>
-        <p className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#003580]" aria-hidden="true" />
+        <p className="mt-4 flex items-center gap-2 text-xs text-[#1c1916]/60">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#8a6232]" aria-hidden="true" />
           {t("syncNote")}
         </p>
       </div>

@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 import { generateTOTPSecret } from "@/lib/totp";
+import { findUserById, updateAdminById } from "@/lib/identity";
 import QRCode from "qrcode";
 
-// POST — generate TOTP secret and QR code for setup
 export async function POST() {
   try {
     const session = await getAdminSession();
@@ -12,11 +11,8 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const admin = await prisma.adminUser.findUnique({
-      where: { id: session.id },
-    });
-
-    if (!admin) {
+    const admin = await findUserById(String(session.id));
+    if (!admin || admin.role !== "admin") {
       return NextResponse.json({ error: "Admin not found" }, { status: 404 });
     }
 
@@ -27,16 +23,9 @@ export async function POST() {
       );
     }
 
-    // Generate new secret
     const { secret, uri } = generateTOTPSecret(admin.email);
+    await updateAdminById(String(admin._id), { twoFactorSecret: secret });
 
-    // Store secret temporarily (not yet enabled until verified)
-    await prisma.adminUser.update({
-      where: { id: session.id },
-      data: { twoFactorSecret: secret },
-    });
-
-    // Generate QR code as data URL
     const qrCodeDataUrl = await QRCode.toDataURL(uri, {
       width: 256,
       margin: 2,

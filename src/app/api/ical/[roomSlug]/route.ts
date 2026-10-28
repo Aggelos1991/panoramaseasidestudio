@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { generateICal } from "@/lib/ical";
+import { findRoom, listBookings, listExternalBookings } from "@/lib/store";
 
 type Params = { params: Promise<{ roomSlug: string }> };
 
@@ -9,37 +9,15 @@ export async function GET(_request: NextRequest, { params }: Params) {
   try {
     const { roomSlug } = await params;
 
-    const room = await prisma.room.findUnique({
-      where: { slug: roomSlug },
-    });
+    const room = await findRoom(roomSlug);
 
     if (!room) {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
     // Get all active bookings for this room
-    const bookings = await prisma.booking.findMany({
-      where: {
-        roomId: room.id,
-        status: "CONFIRMED",
-      },
-      select: {
-        id: true,
-        checkIn: true,
-        checkOut: true,
-      },
-    });
-
-    // Get external bookings from other channels for this room
-    const externalBookings = await prisma.externalBooking.findMany({
-      where: { roomId: room.id },
-      select: {
-        uid: true,
-        summary: true,
-        checkIn: true,
-        checkOut: true,
-      },
-    });
+    const bookings = await listBookings({ roomId: room.id, status: "CONFIRMED" }, { take: 2000 });
+    const externalBookings = await listExternalBookings({ roomId: room.id });
 
     // Combine into iCal events
     const events = [

@@ -1,45 +1,10 @@
 # ───────────────────────────────────────────────────────
 # Panorama Seaside Studios — Docker Compose
-# MySQL is NEVER exposed to the host network.
+# MySQL is retired. The app uses MongoDB via MONGODB_URI.
 # Only Nginx ports (80/443) are accessible from outside.
 # ───────────────────────────────────────────────────────
 
 services:
-  # ─── MySQL 8.0 ──────────────────────────────────────
-  mysql:
-    image: mysql:8.0
-    container_name: panorama-mysql
-    restart: unless-stopped
-    # NO ports exposed — only accessible via Docker internal network
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-panorama}
-      MYSQL_USER: ${MYSQL_USER:-panorama_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - db_network
-    command: >
-      --default-authentication-plugin=caching_sha2_password
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --max-connections=100
-      --innodb-buffer-pool-size=256M
-      --slow-query-log=ON
-      --long-query-time=2
-      --bind-address=0.0.0.0
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
   # ─── Next.js Application ────────────────────────────
   app:
     build:
@@ -47,18 +12,16 @@ services:
       dockerfile: Dockerfile
     container_name: panorama-app
     restart: unless-stopped
-    # NO ports exposed to host — only accessible via Docker internal network
-    depends_on:
-      mysql:
-        condition: service_healthy
     environment:
-      DATABASE_URL: mysql://${MYSQL_USER:-panorama_user}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-panorama}
+      MONGODB_URI: ${MONGODB_URI:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       DEEPL_API_KEY: ${DEEPL_API_KEY:-}
@@ -71,7 +34,6 @@ services:
       NODE_ENV: production
     networks:
       - app_network
-      - db_network
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))\""]
       interval: 15s
@@ -99,7 +61,6 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
     networks:
       - app_network
-    # Nginx can only reach 'app', NOT 'mysql' (separate networks)
     deploy:
       resources:
         limits:
@@ -108,12 +69,3 @@ services:
 networks:
   app_network:
     driver: bridge
-    # nginx <-> app communication
-  db_network:
-    driver: bridge
-    internal: true
-    # app <-> mysql communication (no external access)
-
-volumes:
-  mysql_data:
-    driver: local

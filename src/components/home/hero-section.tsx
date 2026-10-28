@@ -146,7 +146,7 @@ export function HeroSection() {
                   onChange={(event) => setGuests(Number(event.target.value))}
                   className="mt-2 h-10 w-full rounded-md border border-black/15 bg-white/80 px-3 font-sans text-[0.95rem] font-medium text-[#1c1916] outline-none"
                 >
-                  {[1, 2, 3, 4, 5, 6].map((count) => (
+                  {[1, 2].map((count) => (
                     <option key={count} value={count} className="text-black">
                       {count}
                     </option>

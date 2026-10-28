@@ -1,21 +1,25 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getGuestSession } from "@/lib/auth";
 import { format } from "date-fns";
+import { isMongoConfigured } from "@/lib/mongo";
+import { listBookings } from "@/lib/store";
 
 export async function GET() {
   const session = await getGuestSession();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!isMongoConfigured()) {
+    return NextResponse.json(
+      { error: "unavailable", message: "Account sign-in is temporarily unavailable." },
+      { status: 503 },
+    );
+  }
 
-  const bookings = await prisma.booking.findMany({
-    where: { guestId: session.id },
-    include: {
-      room: { select: { nameEn: true, nameEl: true, nameDe: true, slug: true } },
-    },
-    orderBy: { checkIn: "desc" },
-  });
+  const bookings = await listBookings(
+    { guestId: String(session.id) },
+    { includeRoom: true, sort: "checkIn" },
+  );
 
   return NextResponse.json({
     stays: bookings.map((booking) => ({
@@ -28,7 +32,14 @@ export async function GET() {
       status: booking.status,
       totalPrice: Number(booking.totalPrice),
       currency: booking.currency,
-      room: booking.room,
+      room: booking.room
+        ? {
+            nameEn: booking.room.nameEn,
+            nameEl: booking.room.nameEl,
+            nameDe: booking.room.nameDe,
+            slug: booking.room.slug,
+          }
+        : null,
     })),
   });
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { parseStringArray, toJsonArray } from "@/lib/json-array";
+import { parseStringArray } from "@/lib/json-array";
+import { createRoom, findRoom, listRooms, nextRoomSortOrder } from "@/lib/store";
 import { getAdminSession } from "@/lib/auth";
 import { parseTourUrl } from "@/lib/tours";
 
@@ -13,15 +13,7 @@ function slugify(text: string): string {
 
 export async function GET() {
   try {
-    const rooms = await prisma.room.findMany({
-      where: { isActive: true },
-      include: {
-        images: {
-          orderBy: { sortOrder: "asc" },
-        },
-      },
-      orderBy: { sortOrder: "asc" },
-    });
+    const rooms = await listRooms({ activeOnly: true });
 
     const parsed = rooms.map((room) => ({
       ...room,
@@ -77,44 +69,30 @@ export async function POST(request: NextRequest) {
 
     // Generate unique slug
     let slug = slugify(nameEn);
-    const existing = await prisma.room.findUnique({ where: { slug } });
+    const existing = await findRoom(slug);
     if (existing) {
       slug = `${slug}-${Date.now().toString(36)}`;
     }
 
-    // Get max sortOrder
-    const maxSort = await prisma.room.aggregate({ _max: { sortOrder: true } });
-    const sortOrder = (maxSort._max.sortOrder || 0) + 1;
+    const sortOrder = await nextRoomSortOrder();
 
-    const room = await prisma.room.create({
-      data: {
-        slug,
-        nameEn,
-        nameEl: nameEl || nameEn,
-        nameDe: nameDe || nameEn,
-        descEn,
-        descEl: descEl || descEn,
-        descDe: descDe || descEn,
-        capacity,
-        bedType,
-        sizeSqm,
-        basePrice,
-        totalUnits,
-        amenities: toJsonArray(amenities),
-        tourUrl: parsedTour.tourUrl,
-        sortOrder,
-        images: {
-          create: images.map(
-            (img: { url: string; alt?: string; isPrimary?: boolean }, i: number) => ({
-              url: img.url,
-              alt: img.alt || nameEn,
-              isPrimary: img.isPrimary || i === 0,
-              sortOrder: i,
-            }),
-          ),
-        },
-      },
-      include: { images: true },
+    const room = await createRoom({
+      slug,
+      nameEn,
+      nameEl: nameEl || nameEn,
+      nameDe: nameDe || nameEn,
+      descEn,
+      descEl: descEl || descEn,
+      descDe: descDe || descEn,
+      capacity,
+      bedType,
+      sizeSqm,
+      basePrice,
+      totalUnits,
+      amenities,
+      tourUrl: parsedTour.tourUrl,
+      sortOrder,
+      images,
     });
 
     return NextResponse.json({

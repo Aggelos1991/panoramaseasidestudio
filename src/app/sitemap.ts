@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { prisma } from "@/lib/prisma";
+import { LISTING_ROOMS } from "@/lib/listing";
+import { listRooms } from "@/lib/store";
 
 const BASE_URL = "https://panoramaseasidekos.com";
 
@@ -7,13 +8,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Get room slugs from DB with fallback
   let roomSlugs: string[];
   try {
-    const rooms = await prisma.room.findMany({
-      where: { isActive: true },
-      select: { slug: true },
-    });
+    const rooms = await listRooms({ activeOnly: true });
     roomSlugs = rooms.map((r) => r.slug);
   } catch {
-    roomSlugs = [];
+    roomSlugs = LISTING_ROOMS.map((room) => room.slug);
+  }
+  if (roomSlugs.length === 0) {
+    roomSlugs = LISTING_ROOMS.map((room) => room.slug);
   }
 
   const locales = ["en", "el", "de"] as const;

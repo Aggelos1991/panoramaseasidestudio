@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { prisma } from "@/lib/prisma";
+import { findRoom } from "@/lib/store";
 import { getLocalizedField } from "@/lib/utils";
 import { AMENITY_LABELS, AMENITY_ICONS } from "@/lib/constants";
 import { listingRoomBySlug } from "@/lib/listing";
@@ -61,16 +61,9 @@ function fromListing(slug: string): RoomDetail | null {
 }
 
 async function getRoom(slug: string) {
-  const room = await prisma.room.findUnique({
-    where: { slug, isActive: true },
-    include: {
-      images: {
-        orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
-      },
-    },
-  });
+  const room = await findRoom(slug);
 
-  if (!room) return fromListing(slug);
+  if (!room || !room.isActive) return fromListing(slug);
 
   return {
     slug: room.slug,

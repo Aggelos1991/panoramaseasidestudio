@@ -145,6 +145,42 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+export function isEmailConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY);
+}
+
+/** Guest OTP. The code is only placed in the email body, never logged here. */
+export async function sendGuestOtp(email: string, code: string): Promise<boolean> {
+  if (!resend) return false;
+  try {
+    const { error } = await resend.emails.send({
+      from: `${HOTEL_INFO.name} <onboarding@resend.dev>`,
+      to: email,
+      subject: `${HOTEL_INFO.name} verification code`,
+      text: `Your verification code is ${code}. It expires in 10 minutes and works once. If you did not request it, you can ignore this email.`,
+    });
+    return !error;
+  } catch {
+    console.error("OTP email error");
+    return false;
+  }
+}
+
+/** Sent when registration is requested for an email that already has an account. No code. */
+export async function sendAccountExistsNotice(email: string): Promise<void> {
+  if (!resend) return;
+  try {
+    await resend.emails.send({
+      from: `${HOTEL_INFO.name} <onboarding@resend.dev>`,
+      to: email,
+      subject: `${HOTEL_INFO.name} sign-in`,
+      text: "An account with this email already exists. Sign in instead. If you did not try to create an account, you can ignore this email.",
+    });
+  } catch {
+    // Notice is best-effort and must not change the public response.
+  }
+}
+
 export async function sendBookingConfirmation(
   data: BookingConfirmationData,
 ): Promise<void> {

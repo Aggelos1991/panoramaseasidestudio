@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
+import { listBookings, listExternalBookings, listRooms } from "@/lib/store";
 import { getAdminSession } from "@/lib/auth";
 import { startOfMonth, endOfMonth, addDays, parseISO, format } from "date-fns";
 
@@ -22,29 +22,12 @@ export async function GET(request: NextRequest) {
     const rangeEnd = addDays(endOfMonth(monthDate), 1);
 
     const [bookings, externalBookings, rooms] = await Promise.all([
-      prisma.booking.findMany({
-        where: {
-          status: "CONFIRMED",
-          checkIn: { lt: rangeEnd },
-          checkOut: { gt: rangeStart },
-        },
-        include: { room: { select: { id: true, nameEn: true } } },
-      }),
-      prisma.externalBooking.findMany({
-        where: {
-          checkIn: { lt: rangeEnd },
-          checkOut: { gt: rangeStart },
-        },
-        include: {
-          room: { select: { id: true, nameEn: true } },
-          channel: { select: { color: true, platform: true } },
-        },
-      }),
-      prisma.room.findMany({
-        where: { isActive: true },
-        select: { id: true, nameEn: true },
-        orderBy: { sortOrder: "asc" },
-      }),
+      listBookings(
+        { status: "CONFIRMED", overlapsStart: rangeStart, overlapsEnd: rangeEnd },
+        { includeRoom: true, take: 500 },
+      ),
+      listExternalBookings({ overlapsStart: rangeStart, overlapsEnd: rangeEnd }),
+      listRooms({ activeOnly: true }),
     ]);
 
     const internalEvents = bookings.map((b) => {
@@ -56,7 +39,7 @@ export async function GET(request: NextRequest) {
         id: b.id,
         type: "internal" as const,
         roomId: b.roomId,
-        roomName: b.room.nameEn,
+        roomName: b.room?.nameEn || "Room",
         label: `${decrypted.guestFirstName} ${decrypted.guestLastName}`,
         checkIn: format(b.checkIn, "yyyy-MM-dd"),
         checkOut: format(b.checkOut, "yyyy-MM-dd"),
@@ -69,12 +52,12 @@ export async function GET(request: NextRequest) {
       id: eb.id,
       type: "external" as const,
       roomId: eb.roomId,
-      roomName: eb.room.nameEn,
+      roomName: eb.room?.nameEn || "Room",
       label: eb.summary || "Reserved",
       checkIn: format(eb.checkIn, "yyyy-MM-dd"),
       checkOut: format(eb.checkOut, "yyyy-MM-dd"),
-      color: eb.channel.color || "#6366f1",
-      platform: eb.channel.platform,
+      color: eb.channel?.color || "#6366f1",
+      platform: eb.channel?.platform,
     }));
 
     return NextResponse.json({

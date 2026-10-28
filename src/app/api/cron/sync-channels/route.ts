@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { parseICal } from "@/lib/ical";
+import {
+  deleteExternalByUids,
+  externalUids,
+  listChannels,
+  updateChannel,
+  upsertExternalBooking,
+} from "@/lib/store";
 import { parseISO, differenceInCalendarDays } from "date-fns";
 import { sendBookingNotification } from "@/lib/telegram";
 
@@ -14,10 +20,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const channels = await prisma.channel.findMany({
-      where: { isActive: true, icalImportUrl: { not: null } },
-      include: { room: true },
-    });
+    const channels = await listChannels({ activeOnly: true, requireIcal: true });
 
     if (channels.length === 0) {
       return NextResponse.json({ message: "No channels to sync", results: [] });
@@ -40,12 +43,7 @@ export async function GET(request: NextRequest) {
         const icsText = await res.text();
         const events = parseICal(icsText);
 
-        const existingUids = new Set(
-          (await prisma.externalBooking.findMany({
-            where: { channelId: channel.id },
-            select: { uid: true },
-          })).map((e) => e.uid),
-        );
+        const existingUids = new Set(await externalUids(channel.id));
 
         const incomingUids = new Set(events.map((e) => e.uid));
 
@@ -54,23 +52,13 @@ export async function GET(request: NextRequest) {
         for (const event of events) {
           const isNew = !existingUids.has(event.uid);
 
-          await prisma.externalBooking.upsert({
-            where: {
-              channelId_uid: { channelId: channel.id, uid: event.uid },
-            },
-            update: {
-              summary: event.summary,
-              checkIn: parseISO(event.dtstart),
-              checkOut: parseISO(event.dtend),
-            },
-            create: {
-              channelId: channel.id,
-              roomId: channel.roomId,
-              uid: event.uid,
-              summary: event.summary,
-              checkIn: parseISO(event.dtstart),
-              checkOut: parseISO(event.dtend),
-            },
+          await upsertExternalBooking({
+            channelId: channel.id,
+            roomId: channel.roomId,
+            uid: event.uid,
+            summary: event.summary,
+            checkIn: parseISO(event.dtstart),
+            checkOut: parseISO(event.dtend),
           });
 
           if (isNew) {
@@ -87,7 +75,7 @@ export async function GET(request: NextRequest) {
           sendBookingNotification({
             type: "external",
             summary: nb.summary,
-            roomName: channel.room.nameEn,
+            roomName: channel.room?.nameEn || "Room",
             platform: channel.platform,
             checkIn: nb.checkIn,
             checkOut: nb.checkOut,
@@ -97,28 +85,20 @@ export async function GET(request: NextRequest) {
 
         const toRemove = [...existingUids].filter((uid) => !incomingUids.has(uid));
         if (toRemove.length > 0) {
-          await prisma.externalBooking.deleteMany({
-            where: { channelId: channel.id, uid: { in: toRemove } },
-          });
+          await deleteExternalByUids(channel.id, toRemove);
         }
 
-        await prisma.channel.update({
-          where: { id: channel.id },
-          data: {
-            lastSyncAt: new Date(),
-            lastSyncStatus: `OK — ${events.length} events`,
-          },
+        await updateChannel(channel.id, {
+          lastSyncAt: new Date(),
+          lastSyncStatus: `OK — ${events.length} events`,
         });
 
         results.push({ id: channel.id, name: channel.name, status: "success", count: events.length });
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Unknown error";
-        await prisma.channel.update({
-          where: { id: channel.id },
-          data: {
-            lastSyncAt: new Date(),
-            lastSyncStatus: `Error: ${errorMsg}`,
-          },
+        await updateChannel(channel.id, {
+          lastSyncAt: new Date(),
+          lastSyncStatus: `Error: ${errorMsg}`,
         });
         results.push({ id: channel.id, name: channel.name, status: `error: ${errorMsg}`, count: 0 });
       }

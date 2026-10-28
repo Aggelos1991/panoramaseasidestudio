@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { verifyBtcpaySignature } from "@/lib/btcpay";
-import { decrypt } from "@/lib/gdpr-crypto";
-import { sendBookingNotification } from "@/lib/telegram";
-import { sendBookingConfirmation } from "@/lib/email";
+import { btcAmountMatches, getBtcpayInvoice, verifyBtcpaySignature } from "@/lib/btcpay";
+import { markBookingPaid } from "@/lib/booking-payment";
+import { findBooking, updateBooking } from "@/lib/store";
 
 // BTCPay Server webhook (Greenfield). Configure on the store with the URL
 // <app>/api/webhooks/btcpay and the secret from BTCPAY_WEBHOOK_SECRET.
+// A booking is marked paid only after the signature checks and the invoice
+// itself is Settled for the server-computed amount.
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const signature = request.headers.get("btcpay-sig");
@@ -26,53 +26,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  const booking = await prisma.booking.findUnique({
-    where: { btcpayInvoiceId: event.invoiceId },
-    include: { room: true },
-  });
+  const booking = await findBooking({ btcpayInvoiceId: event.invoiceId });
 
   if (!booking) {
-    // Unknown invoice — acknowledge so BTCPay stops retrying
     return NextResponse.json({ received: true });
   }
 
   switch (event.type) {
     case "InvoiceSettled": {
-      if (booking.paymentStatus !== "PAID") {
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: { status: "CONFIRMED", paymentStatus: "PAID" },
-        });
-
-        // Notifications were deferred until settlement for bitcoin payments
-        try {
-          const guestName = `${decrypt(booking.guestFirstName)} ${decrypt(booking.guestLastName)}`;
-          const guestEmail = decrypt(booking.guestEmail);
-          const payload = {
-            guestName,
-            roomName: booking.room.nameEn,
-            checkIn: booking.checkIn,
-            checkOut: booking.checkOut,
-            nights: booking.nights,
-            totalPrice: Number(booking.totalPrice),
-            referenceNumber: booking.referenceNumber,
-          };
-          sendBookingNotification({ type: "internal", ...payload }).catch(() => {});
-          sendBookingConfirmation({ guestEmail, ...payload }).catch(() => {});
-        } catch {
-          // Decryption/notification failure must not fail the webhook
-        }
+      if (booking.paymentStatus === "PAID") break;
+      const invoice = await getBtcpayInvoice(event.invoiceId);
+      if (!invoice) {
+        return NextResponse.json(
+          { error: "Invoice could not be confirmed" },
+          { status: 503 },
+        );
       }
+      const settled =
+        invoice.status === "Settled" &&
+        invoice.currency.toUpperCase() === "EUR" &&
+        btcAmountMatches(invoice.amount, Number(booking.totalPrice));
+      if (!settled) {
+        return NextResponse.json(
+          { error: "Invoice does not match the booking" },
+          { status: 400 },
+        );
+      }
+      await markBookingPaid(booking.id, { paymentMethod: "btcpay" });
       break;
     }
 
     case "InvoiceExpired":
     case "InvoiceInvalid": {
       if (booking.paymentStatus !== "PAID") {
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: { status: "CANCELLED" },
-        });
+        await updateBooking(booking.id, { status: "CANCELLED" });
       }
       break;
     }

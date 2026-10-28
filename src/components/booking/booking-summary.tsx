@@ -1,8 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Image from "next/image";
 import { format } from "date-fns";
+import { de, el, enUS } from "date-fns/locale";
 import { CalendarDays, Users, Moon } from "lucide-react";
 import type { BookingState } from "@/app/[locale]/booking/page";
 
@@ -13,87 +14,83 @@ type Props = {
 
 export function BookingSummary({ booking, showGuestDetails = false }: Props) {
   const t = useTranslations("booking");
+  const locale = useLocale();
+  const dateLocale = locale === "el" ? el : locale === "de" ? de : enUS;
 
   if (!booking.selectedRoom) return null;
 
   const room = booking.selectedRoom;
+  const guest = booking.guestDetails;
 
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-soft">
-      <h3 className="mb-5 font-serif text-lg font-semibold text-deep-blue">
+    <div className="glass-card rounded-[28px] p-6">
+      <h2 className="font-film text-3xl font-medium leading-none tracking-tight text-[#1c1916]">
         {t("summary")}
-      </h3>
+      </h2>
 
-      {/* Room Image */}
-      <div className="relative aspect-video overflow-hidden rounded-xl">
+      <div className="relative mt-5 aspect-video overflow-hidden rounded-2xl">
         <Image
           src={room.imageUrl}
           alt={room.name}
           fill
           className="object-cover"
-          sizes="400px"
+          sizes="(min-width: 1024px) 320px, 100vw"
         />
       </div>
 
-      {/* Room Name */}
-      <h4 className="mt-4 font-serif text-lg font-semibold text-deep-blue">
+      <h3 className="mt-5 font-film text-3xl font-medium leading-none text-[#1c1916]">
         {room.name}
-      </h4>
+      </h3>
 
-      {/* Details */}
-      <div className="mt-4 space-y-3 border-t border-sandy pt-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-2 text-gray-500">
-            <CalendarDays className="h-4 w-4" />
+      <dl className="mt-5 space-y-3 border-t border-black/10 pt-4 text-sm">
+        <div className="flex items-center justify-between gap-4">
+          <dt className="flex items-center gap-2 text-[#1c1916]/60">
+            <CalendarDays className="h-4 w-4" aria-hidden="true" />
             {t("checkIn")}
-          </span>
-          <span className="font-medium text-deep-blue">
-            {booking.checkIn ? format(booking.checkIn, "MMM dd, yyyy") : "—"}
-          </span>
+          </dt>
+          <dd className="font-medium text-[#1c1916]">
+            {booking.checkIn ? format(booking.checkIn, "d MMM yyyy", { locale: dateLocale }) : "—"}
+          </dd>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-2 text-gray-500">
-            <CalendarDays className="h-4 w-4" />
+        <div className="flex items-center justify-between gap-4">
+          <dt className="flex items-center gap-2 text-[#1c1916]/60">
+            <CalendarDays className="h-4 w-4" aria-hidden="true" />
             {t("checkOut")}
-          </span>
-          <span className="font-medium text-deep-blue">
-            {booking.checkOut ? format(booking.checkOut, "MMM dd, yyyy") : "—"}
-          </span>
+          </dt>
+          <dd className="font-medium text-[#1c1916]">
+            {booking.checkOut ? format(booking.checkOut, "d MMM yyyy", { locale: dateLocale }) : "—"}
+          </dd>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-2 text-gray-500">
-            <Moon className="h-4 w-4" />
+        <div className="flex items-center justify-between gap-4">
+          <dt className="flex items-center gap-2 text-[#1c1916]/60">
+            <Moon className="h-4 w-4" aria-hidden="true" />
             {t("nights", { count: room.nights })}
-          </span>
+          </dt>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-2 text-gray-500">
-            <Users className="h-4 w-4" />
+        <div className="flex items-center justify-between gap-4">
+          <dt className="flex items-center gap-2 text-[#1c1916]/60">
+            <Users className="h-4 w-4" aria-hidden="true" />
             {t("guests")}
-          </span>
-          <span className="font-medium text-deep-blue">{booking.guests}</span>
+          </dt>
+          <dd className="font-medium text-[#1c1916]">{booking.guests}</dd>
         </div>
-      </div>
+      </dl>
 
-      {/* Guest Details */}
-      {showGuestDetails && booking.guestDetails && (
-        <div className="mt-4 space-y-2 border-t border-sandy pt-4">
-          <h5 className="text-sm font-medium text-gray-500">
-            {t("step3")}
-          </h5>
-          <p className="text-sm text-deep-blue">
-            {booking.guestDetails.firstName} {booking.guestDetails.lastName}
+      {showGuestDetails && guest && (
+        <div className="mt-4 space-y-1 border-t border-black/10 pt-4">
+          <h3 className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#1c1916]/55">
+            {t("yourDetails")}
+          </h3>
+          <p className="pt-2 font-film text-2xl leading-none text-[#1c1916]">
+            {guest.firstName} {guest.lastName}
           </p>
-          <p className="text-sm text-gray-500">{booking.guestDetails.email}</p>
-          {booking.guestDetails.phone && (
-            <p className="text-sm text-gray-500">{booking.guestDetails.phone}</p>
+          <p className="text-sm text-[#1c1916]/70">{guest.email}</p>
+          {guest.phone && <p className="text-sm text-[#1c1916]/70">{guest.phone}</p>}
+          {guest.specialRequests && (
+            <p className="pt-2 text-sm leading-relaxed text-[#1c1916]/70">{guest.specialRequests}</p>
           )}
         </div>
       )}
-
-      <div className="mt-4 border-t border-sandy pt-4 text-sm text-gray-500">
-        {t("nights", { count: room.nights })}
-      </div>
     </div>
   );
 }
