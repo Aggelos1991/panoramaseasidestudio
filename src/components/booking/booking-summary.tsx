@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { format } from "date-fns";
-import { CalendarDays, Users, Moon, Receipt } from "lucide-react";
+import { CalendarDays, Users, Moon } from "lucide-react";
 import type { BookingState } from "@/app/[locale]/booking/page";
 
 type Props = {
@@ -91,23 +91,8 @@ export function BookingSummary({ booking, showGuestDetails = false }: Props) {
         </div>
       )}
 
-      {/* Price */}
-      <div className="mt-4 border-t border-sandy pt-4">
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <span>
-            &euro;{room.pricePerNight} &times; {room.nights}{" "}
-            {t("nights", { count: room.nights }).toLowerCase()}
-          </span>
-        </div>
-        <div className="mt-3 flex items-center justify-between">
-          <span className="flex items-center gap-2 font-semibold text-deep-blue">
-            <Receipt className="h-4 w-4" />
-            {t("totalPrice")}
-          </span>
-          <span className="text-2xl font-bold text-terracotta">
-            &euro;{room.totalPrice}
-          </span>
-        </div>
+      <div className="mt-4 border-t border-sandy pt-4 text-sm text-gray-500">
+        {t("nights", { count: room.nights })}
       </div>
     </div>
   );

@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 const navLinks = [
   { href: "/", key: "home" },
   { href: "/rooms", key: "rooms" },
-  { href: "/gallery", key: "gallery" },
   { href: "/about", key: "about" },
   { href: "/contact", key: "contact" },
 ] as const;
@@ -22,10 +21,18 @@ export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [guestName, setGuestName] = useState<string | null>(null);
 
   // Only the home page has a dark hero - all other pages need dark header text
-  const isHomePage = pathname === "/";
-  const useDarkStyle = !isHomePage || scrolled;
+  const onFilm =
+    pathname === "/" ||
+    pathname.startsWith("/rooms") ||
+    pathname.startsWith("/booking") ||
+    pathname === "/about" ||
+    pathname === "/contact" ||
+    pathname.startsWith("/account");
+  const overFilm = pathname === "/" && !scrolled;
+  const useDarkStyle = !overFilm;
 
   useEffect(() => {
     function handleScroll() {
@@ -39,12 +46,27 @@ export function Header() {
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/guest")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled) setGuestName(data?.guest?.firstName ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setGuestName(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
   return (
     <header
       className={cn(
         "fixed left-0 right-0 top-0 z-50 transition-all duration-500",
         useDarkStyle
-          ? "glass border-b border-sandy-dark/30 shadow-soft"
+          ? "border-b border-black/8 bg-[#f3efe8]/80 shadow-soft backdrop-blur-md"
           : "bg-transparent",
       )}
     >
@@ -86,9 +108,30 @@ export function Header() {
           <div className={cn(useDarkStyle ? "" : "[&_button]:text-white")}>
             <LanguageSwitcher />
           </div>
-          <Link href="/booking" className="hidden sm:block">
-            <Button size="sm" className="btn-glow">{t("bookNow")}</Button>
+          <Link
+            href="/account"
+            className={cn(
+              "text-sm font-medium",
+              useDarkStyle ? "text-deep-blue" : "text-white",
+            )}
+          >
+            {guestName ? t("account") : t("signIn")}
           </Link>
+          {onFilm ? (
+            <Link
+              href="/booking"
+              className={cn(
+                "hidden px-4 py-2 text-sm sm:inline-flex",
+                overFilm ? "bg-[#e8e2d6] text-[#071210]" : "bg-[#1c1916] text-[#f3efe8]",
+              )}
+            >
+              {t("bookNow")}
+            </Link>
+          ) : (
+            <Link href="/booking" className="hidden sm:block">
+              <Button size="sm" className="btn-glow">{t("bookNow")}</Button>
+            </Link>
+          )}
 
           {/* Mobile Menu Button */}
           <button
@@ -112,7 +155,10 @@ export function Header() {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div className="glass border-t border-sandy-dark/30 lg:hidden animate-slide-down">
+        <div className={cn(
+          "border-t lg:hidden animate-slide-down",
+          "border-black/8 bg-[#f3efe8] text-[#1c1916]",
+        )}>
           <nav className="mx-auto flex max-w-7xl flex-col px-4 py-4 sm:px-6">
             {navLinks.map((link) => (
               <Link
@@ -121,17 +167,29 @@ export function Header() {
                 className={cn(
                   "rounded-lg px-4 py-3 text-base font-medium transition-colors",
                   pathname === link.href
-                    ? "bg-sandy text-terracotta"
-                    : "text-gray-700 hover:bg-sandy-light",
+                    ? "bg-black/5 text-[#1c1916]"
+                    : "text-[#1c1916]/80 hover:bg-black/5",
                 )}
               >
                 {t(link.key)}
               </Link>
             ))}
-            <div className="mt-4 border-t border-sandy pt-4">
-              <Link href="/booking">
-                <Button className="w-full btn-glow">{t("bookNow")}</Button>
+            <div className="mt-4 border-t border-black/8 pt-4">
+              <Link
+                href="/account"
+                className="mb-3 block rounded-lg px-4 py-3 text-base font-medium text-[#1c1916]/80 hover:bg-black/5"
+              >
+                {guestName ? t("account") : t("signIn")}
               </Link>
+              {onFilm ? (
+                <Link href="/booking" className="block bg-[#1c1916] px-4 py-3 text-center text-sm text-[#f3efe8]">
+                  {t("bookNow")}
+                </Link>
+              ) : (
+                <Link href="/booking">
+                  <Button className="w-full btn-glow">{t("bookNow")}</Button>
+                </Link>
+              )}
             </div>
           </nav>
         </div>

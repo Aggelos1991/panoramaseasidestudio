@@ -1,0 +1,6 @@
+sample-apartment.sog
+  Title:   SA3D_R&D_XP47
+  Author:  Stephane Agullo (https://sa3d.fr)
+  Source:  https://superspl.at/view?id=cdcec084 (via github.com/playcanvas/engine examples/assets/splats/apartment.sog)
+  License: CC-BY-4.0 — credit required, commercial use allowed.
+  Placeholder only: replace with a scan of a real Panorama Seaside room.

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { guestDetailsSchema, type GuestDetailsData } from "@/lib/validators";
 import { Button } from "@/components/ui/button";
 import type { GuestDetails } from "@/app/[locale]/booking/page";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   onSubmit: (details: GuestDetails) => void;
@@ -18,10 +18,23 @@ export function GuestForm({ onSubmit }: Props) {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<GuestDetailsData>({
     resolver: zodResolver(guestDetailsSchema),
   });
+
+  useEffect(() => {
+    fetch("/api/guest")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!data?.guest) return;
+        setValue("firstName", data.guest.firstName);
+        setValue("lastName", data.guest.lastName);
+        setValue("email", data.guest.email);
+      })
+      .catch(() => {});
+  }, [setValue]);
 
   function onFormSubmit(data: GuestDetailsData) {
     if (!gdprConsent) return;

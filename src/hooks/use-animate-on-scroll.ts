@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 export function useAnimateOnScroll(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
     const el = ref.current;

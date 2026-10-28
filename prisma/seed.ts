@@ -39,8 +39,8 @@ async function main() {
       descDe:
         "Ein wunderschön eingerichtetes Deluxe-Zimmer mit Wahl zwischen einem großen Doppelbett oder zwei Einzelbetten. Mit Klimaanlage, Flachbildfernseher, Zimmersafe, Minikühlschrank und privatem Balkon.",
       capacity: 2,
-      bedType: "1 Double Bed or 2 Single Beds",
-      sizeSqm: 25,
+      bedType: "1 king bed or 2 single beds",
+      sizeSqm: 20,
       basePrice: 65,
       totalUnits: 2,
       amenities: JSON.stringify([
@@ -74,8 +74,8 @@ async function main() {
       descDe:
         "Ein geräumiges Studio mit offenem Grundriss und ruhigem Garten- und Landblick. Ausgestattet mit zwei Einzelbetten und einem Schlafsofa, voll ausgestatteter Küchenzeile mit Kühlschrank, Herdplatten und Wasserkocher, Flachbildfernseher, Klimaanlage und möbliertem Balkon.",
       capacity: 2,
-      bedType: "2 Single Beds + 1 Sofa Bed",
-      sizeSqm: 28,
+      bedType: "2 single beds and 1 sofa bed",
+      sizeSqm: 20,
       basePrice: 55,
       totalUnits: 2,
       amenities: JSON.stringify([
@@ -109,8 +109,8 @@ async function main() {
       descDe:
         "Ein Premium-Studio mit offenem Grundriss direkt am Meer mit atemberaubendem Blick auf die Ägäis. Mit zwei Einzelbetten und einem Schlafsofa, voll ausgestatteter Küchenzeile, Flachbildfernseher, Klimaanlage und möbliertem Balkon mit direktem Meerblick.",
       capacity: 2,
-      bedType: "2 Single Beds + 1 Sofa Bed",
-      sizeSqm: 28,
+      bedType: "2 single beds and 1 sofa bed",
+      sizeSqm: 20,
       basePrice: 70,
       totalUnits: 2,
       amenities: JSON.stringify([
@@ -134,9 +134,9 @@ async function main() {
     },
     {
       slug: "superior-double-sea-view",
-      nameEn: "Superior Double Room with Sea View",
-      nameEl: "Superior Δίκλινο με Θέα Θάλασσα",
-      nameDe: "Superior Doppelzimmer mit Meerblick",
+      nameEn: "Superior Twin Room with Sea View",
+      nameEl: "Superior δίκλινο με θέα θάλασσα",
+      nameDe: "Superior-Zweibettzimmer mit Meerblick",
       descEn:
         "A comfortable superior room with two single beds and beautiful sea views from your private balcony. Equipped with air conditioning, flat-screen TV, mini fridge, and a private bathroom with shower. Ideal for guests who want to wake up to the sound of waves.",
       descEl:
@@ -144,8 +144,8 @@ async function main() {
       descDe:
         "Ein komfortables Superior-Zimmer mit zwei Einzelbetten und schönem Meerblick vom privaten Balkon. Ausgestattet mit Klimaanlage, Flachbildfernseher, Minikühlschrank und eigenem Bad mit Dusche.",
       capacity: 2,
-      bedType: "2 Single Beds",
-      sizeSqm: 22,
+      bedType: "2 single beds",
+      sizeSqm: 20,
       basePrice: 60,
       totalUnits: 2,
       amenities: JSON.stringify([
@@ -179,7 +179,7 @@ async function main() {
       descDe:
         "Ein gemütliches Zimmer mit einem großen Doppelbett und privatem Balkon. Mit Klimaanlage, Flachbildfernseher, Minikühlschrank und eigenem Bad mit Dusche. Ein friedlicher Rückzugsort perfekt für Paare.",
       capacity: 2,
-      bedType: "1 Double Bed",
+      bedType: "1 king bed",
       sizeSqm: 20,
       basePrice: 50,
       totalUnits: 1,

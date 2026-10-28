@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStringArray, toJsonArray } from "@/lib/json-array";
 import { getAdminSession } from "@/lib/auth";
+import { parseTourUrl } from "@/lib/tours";
 
 function slugify(text: string): string {
   return text
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
       totalUnits = 1,
       amenities = [],
       images = [],
+      tourUrl,
     } = body;
 
     if (!nameEn || !capacity || !basePrice) {
@@ -66,6 +68,11 @@ export async function POST(request: NextRequest) {
         { error: "Name, capacity, and base price are required" },
         { status: 400 },
       );
+    }
+
+    const parsedTour = parseTourUrl(tourUrl);
+    if ("error" in parsedTour) {
+      return NextResponse.json({ error: parsedTour.error }, { status: 400 });
     }
 
     // Generate unique slug
@@ -94,6 +101,7 @@ export async function POST(request: NextRequest) {
         basePrice,
         totalUnits,
         amenities: toJsonArray(amenities),
+        tourUrl: parsedTour.tourUrl,
         sortOrder,
         images: {
           create: images.map(

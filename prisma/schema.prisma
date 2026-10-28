@@ -24,6 +24,7 @@ model Room {
   basePrice   Decimal  @db.Decimal(10, 2)
   totalUnits  Int      @default(1)
   amenities   String   @db.Text // JSON array stored as text
+  tourUrl     String?  @db.VarChar(512) // 3D tour scene (Gaussian splat), see src/lib/tours.ts
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -116,11 +117,17 @@ model Booking {
   stripeSessionId String?       @unique
   stripePaymentId String?
 
+  // BTCPay Server (bitcoin payments)
+  btcpayInvoiceId String?       @unique
+
   locale    String   @default("en")
+  guestId   String?
+  guest     Guest?   @relation(fields: [guestId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([referenceNumber])
+  @@index([guestId])
   @@index([roomId, checkIn, checkOut])
   @@index([status])
   @@index([guestEmail])
@@ -132,11 +139,23 @@ enum BookingStatus {
 }
 
 enum PaymentStatus {
+  PENDING
   PAID
   REFUNDED
 }
 
 // ─── Admin ──────────────────────────────────────────────────
+
+model Guest {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  firstName String
+  lastName  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+}
 
 model AdminUser {
   id                  String    @id @default(cuid())

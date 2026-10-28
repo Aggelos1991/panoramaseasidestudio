@@ -1,83 +1,76 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Star, Quote } from "lucide-react";
-import { useAnimateOnScroll } from "@/hooks/use-animate-on-scroll";
+import { Star } from "lucide-react";
+import { HOTEL_INFO } from "@/lib/constants";
+import { Reel, ReelGroup, ReelItem } from "@/components/motion/reel";
 
 const reviews = [
   {
     name: "Arthur",
     country: "United Kingdom",
-    text: "Exceptional service, the bed was extremely comfy and the location is stunning — right on the beachfront. Chrissy the owner is wonderful and makes you feel so welcome. Highly recommend!",
-    rating: 5,
+    score: 5,
+    text: "Exceptional service, the bed was extremely comfy and the location is stunning — right on the beachfront. Chrissy the owner is wonderful and makes you feel so welcome.",
   },
   {
     name: "Albert",
     country: "Netherlands",
-    text: "Very convenient base for exploring Kos. The sea view from our terrace was spectacular, and the cleaning lady was really nice. Great value for the beachfront location!",
-    rating: 5,
+    score: 5,
+    text: "Very convenient base for exploring Kos. The sea view from our terrace was spectacular, and the cleaning lady was really nice.",
   },
   {
     name: "Μαρία Κ.",
     country: "Greece",
-    text: "Υπέροχη τοποθεσία στο Μαστιχάρι, κυριολεκτικά πάνω στην παραλία! Τα στούντιο είναι καθαρά και καλά εξοπλισμένα. Η οικογένεια που το διαχειρίζεται είναι πολύ φιλόξενη. Θα ξαναέρθουμε σίγουρα!",
-    rating: 5,
+    score: 5,
+    text: "Υπέροχη τοποθεσία στο Μαστιχάρι, κυριολεκτικά πάνω στην παραλία. Τα στούντιο είναι καθαρά και η οικογένεια είναι πολύ φιλόξενη.",
   },
 ];
 
+function Stars({ score }: { score: number }) {
+  const filled = score;
+  return (
+    <span className="flex gap-0.5" aria-label={`${score} / 5`}>
+      {Array.from({ length: 5 }, (_, index) => (
+        <Star
+          key={index}
+          className={`h-3.5 w-3.5 ${index < filled ? "fill-[#8a6232] text-[#8a6232]" : "text-[#1c1916]/20"}`}
+        />
+      ))}
+    </span>
+  );
+}
+
 export function Testimonials() {
   const t = useTranslations("testimonials");
-  const { ref, isVisible } = useAnimateOnScroll();
 
   return (
-    <section className="bg-sandy-light py-20 sm:py-28">
-      <div ref={ref} className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div
-          className={`text-center transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
-        >
-          <div className="mb-2 flex items-center justify-center gap-3">
-            <div className="h-px w-8 bg-gold" />
-            <span className="text-sm font-medium uppercase tracking-wider text-terracotta">
-              {t("subtitle")}
-            </span>
-            <div className="h-px w-8 bg-gold" />
-          </div>
-          <h2 className="font-serif text-3xl font-bold text-deep-blue sm:text-4xl">
-            {t("title")}
-          </h2>
-        </div>
-
-        <div className="mt-14 grid gap-8 md:grid-cols-3">
-          {reviews.map((review, i) => (
-            <div
-              key={i}
-              className={`relative overflow-hidden rounded-2xl glass-gold p-8 card-hover transition-all duration-700 ${
-                isVisible
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-8"
-              }`}
-              style={{ transitionDelay: isVisible ? `${300 + i * 150}ms` : "0ms" }}
-            >
-              <Quote className="absolute right-6 top-6 h-10 w-10 text-gold/30" />
-              <div className="flex gap-1">
-                {Array.from({ length: review.rating }).map((_, j) => (
-                  <Star
-                    key={j}
-                    className="h-4 w-4 fill-gold text-gold"
-                  />
-                ))}
-              </div>
-              <p className="mt-4 text-sm leading-relaxed text-gray-600 italic">
-                &ldquo;{review.text}&rdquo;
-              </p>
-              <div className="mt-6 border-t border-gold/20 pt-4">
-                <p className="font-semibold text-deep-blue">{review.name}</p>
-                <p className="text-xs text-gray-400">{review.country}</p>
-              </div>
+    <section className="bg-[#f3efe8] px-5 py-20 text-[#1c1916] sm:px-10 sm:py-28 lg:px-16">
+      <Reel className="flex flex-wrap items-end justify-between gap-6">
+        <h2 className="font-film text-4xl font-medium leading-none tracking-tight sm:text-5xl">
+          {t("title")}
+        </h2>
+        <p className="text-sm leading-relaxed text-[#1c1916]/70">
+          <span className="font-film text-3xl text-[#1c1916]">{HOTEL_INFO.rating.toFixed(1)}</span>
+          <span className="ml-2">Booking.com · {HOTEL_INFO.reviewCount}</span>
+        </p>
+      </Reel>
+      <ReelGroup className="mt-10 grid gap-4 lg:grid-cols-3">
+        {reviews.map((review) => (
+          <ReelItem key={review.name}>
+          <figure className="glass-card h-full rounded-2xl p-6">
+            <div className="flex items-center justify-between gap-3">
+              <Stars score={review.score} />
+              <span className="text-sm text-[#8a6232]">Booking.com</span>
             </div>
-          ))}
-        </div>
-      </div>
+            <blockquote className="mt-4 text-base leading-relaxed">{review.text}</blockquote>
+            <figcaption className="mt-6 text-sm text-[#1c1916]">
+              {review.name}
+              <span className="text-[#1c1916]/50"> · {review.country}</span>
+            </figcaption>
+          </figure>
+          </ReelItem>
+        ))}
+      </ReelGroup>
     </section>
   );
 }

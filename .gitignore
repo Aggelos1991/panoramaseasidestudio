@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# 3D tour viewer, copied from node_modules by scripts/copy-tour-viewer.mjs
+/public/tour-viewer/
+
 # production
 /build
 

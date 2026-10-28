@@ -229,9 +229,12 @@ export default function ChannelsPage() {
         <h2 className="text-sm font-semibold text-gray-900">
           Export URLs (paste into OTAs)
         </h2>
-        <p className="mt-1 text-xs text-gray-400">
-          Copy these iCal URLs and paste them into each platform&apos;s calendar
-          import settings
+        <p className="mt-1 text-xs leading-relaxed text-gray-500">
+          Booking.com sync uses calendar links. Paste each room&apos;s export
+          URL into Booking.com under calendar sync, then add Booking.com&apos;s
+          own export link as a channel below. Direct bookings and Booking.com
+          reservations then block each other. Use Sync now, or leave the
+          15-minute sync to pull new Booking.com stays onto this calendar.
         </p>
         <div className="mt-3 space-y-2">
           {roomSlugs.map((room) => (
@@ -329,8 +332,10 @@ export default function ChannelsPage() {
                 placeholder="https://..."
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-deep-blue focus:outline-none"
               />
-              <p className="mt-1 text-[10px] text-gray-400">
-                Find this in the OTA&apos;s calendar export settings
+              <p className="mt-1 text-[10px] leading-relaxed text-gray-500">
+                {formPlatform === "BOOKING_COM"
+                  ? "In the Booking.com extranet, open the room’s calendar and copy the iCal export link."
+                  : "Find this in the platform’s calendar export settings."}
               </p>
             </div>
           </div>

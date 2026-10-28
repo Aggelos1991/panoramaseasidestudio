@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
   CalendarDays,
@@ -42,6 +42,8 @@ type Props = {
 
 const DAY_NAMES = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
+type NightStatus = "open" | "busy" | "full" | "closed";
+
 function getMonthDays(month: Date): Date[] {
   const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
   const end = endOfWeek(endOfMonth(month), { weekStartsOn: 0 });
@@ -58,17 +60,49 @@ export function DateSelector({
 }: Props) {
   const t = useTranslations("booking");
   const isMobile = useMediaQuery("(max-width: 639px)");
-  const [currentMonth, setCurrentMonth] = useState(() => new Date());
+  const [currentMonth, setCurrentMonth] = useState(() =>
+    checkIn ? startOfMonth(checkIn) : new Date(),
+  );
   const [selecting, setSelecting] = useState<"checkIn" | "checkOut">(
     "checkIn",
   );
   const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
+  const [occupancy, setOccupancy] = useState<Record<string, NightStatus>>({});
 
   const nights =
     checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0;
 
   const tomorrow = addDays(new Date(), 1);
   tomorrow.setHours(0, 0, 0, 0);
+
+  useEffect(() => {
+    const from = format(startOfMonth(currentMonth), "yyyy-MM-dd");
+    const to = format(endOfMonth(addMonths(currentMonth, 1)), "yyyy-MM-dd");
+    let cancelled = false;
+    fetch(`/api/calendar/public?from=${from}&to=${to}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.dates) setOccupancy(data.dates);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [currentMonth]);
+
+  function nightStatus(day: Date): NightStatus {
+    return occupancy[format(day, "yyyy-MM-dd")] || "open";
+  }
+
+  function stayIncludesBlocked(start: Date, end: Date): boolean {
+    let cursor = start;
+    while (isBefore(cursor, end)) {
+      const status = nightStatus(cursor);
+      if (status === "full" || status === "closed") return true;
+      cursor = addDays(cursor, 1);
+    }
+    return false;
+  }
 
   const month1Days = useMemo(() => getMonthDays(currentMonth), [currentMonth]);
   const month2 = addMonths(currentMonth, 1);
@@ -77,17 +111,24 @@ export function DateSelector({
   function handleDayClick(day: Date) {
     if (isBefore(day, tomorrow)) return;
 
+    const blocked =
+      nightStatus(day) === "full" || nightStatus(day) === "closed";
+
     if (selecting === "checkIn") {
+      if (blocked) return;
       onCheckInChange(day);
       onCheckOutChange(null);
       setSelecting("checkOut");
     } else {
       // checkOut selection
       if (checkIn && (isBefore(day, checkIn) || isSameDay(day, checkIn))) {
+        if (blocked) return;
         // If clicked before check-in, reset and start over
         onCheckInChange(day);
         onCheckOutChange(null);
         setSelecting("checkOut");
+      } else if (checkIn && stayIncludesBlocked(checkIn, day)) {
+        return;
       } else {
         onCheckOutChange(day);
         setSelecting("checkIn");
@@ -114,7 +155,10 @@ export function DateSelector({
   }
 
   function isDisabled(day: Date): boolean {
-    return isBefore(day, tomorrow);
+    if (isBefore(day, tomorrow)) return true;
+    if (selecting !== "checkIn") return false;
+    const status = nightStatus(day);
+    return status === "full" || status === "closed";
   }
 
   function renderMonth(monthDate: Date, days: Date[]) {
@@ -155,6 +199,7 @@ export function DateSelector({
               const inRange = isInRange(day);
               const today = isToday(day);
               const selected = rangeStart || rangeEnd;
+              const status = nightStatus(day);
 
               if (!inMonth) {
                 return (
@@ -185,6 +230,15 @@ export function DateSelector({
                       !disabled && setHoveredDate(day)
                     }
                     onMouseLeave={() => setHoveredDate(null)}
+                    title={
+                      status === "full"
+                        ? t("nightFull")
+                        : status === "closed"
+                          ? t("nightClosed")
+                          : status === "busy"
+                            ? t("nightBusy")
+                            : undefined
+                    }
                     className={cn(
                       "relative z-10 flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-all duration-150 sm:h-10 sm:w-10",
                       // Default
@@ -204,6 +258,9 @@ export function DateSelector({
                     )}
                   >
                     {format(day, "d")}
+                    {status === "busy" && !selected && (
+                      <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[#003580]" />
+                    )}
                   </button>
                 </div>
               );
@@ -352,6 +409,10 @@ export function DateSelector({
           {renderMonth(currentMonth, month1Days)}
           {renderMonth(month2, month2Days)}
         </div>
+        <p className="mt-4 flex items-center gap-2 text-xs text-gray-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#003580]" aria-hidden="true" />
+          {t("syncNote")}
+        </p>
       </div>
     </div>
   );

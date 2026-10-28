@@ -1,100 +1,168 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
-import { PanoramaLogo } from "@/components/ui/panorama-logo";
+import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import Image from "next/image";
 import { PLACEHOLDER_IMAGES } from "@/lib/constants";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { addDays, format } from "date-fns";
+import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { cinematic } from "@/components/motion/reel";
 
 export function HeroSection() {
   const t = useTranslations("hero");
-  const [mounted, setMounted] = useState(false);
+  const bookingT = useTranslations("booking");
+  const locale = useLocale();
+  const router = useRouter();
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [tomorrow, setTomorrow] = useState("");
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [guests, setGuests] = useState(2);
+  const reduce = useReducedMotion();
+  const frame = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: frame,
+    offset: ["start start", "end start"],
+  });
+  const pictureY = useTransform(scrollYProgress, [0, 1], ["0%", "18%"]);
+  const pictureScale = useTransform(scrollYProgress, [0, 1], [1, 1.12]);
 
   useEffect(() => {
-    setMounted(true);
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduceMotion(motion.matches);
+    setTomorrow(format(addDays(new Date(), 1), "yyyy-MM-dd"));
   }, []);
 
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const arrive = String(data.get("checkIn") || checkIn);
+    const leave = String(data.get("checkOut") || checkOut);
+    const guestCount = String(data.get("guests") || guests);
+    if (!arrive || !leave || leave <= arrive) return;
+    router.push(`/booking?checkIn=${arrive}&checkOut=${leave}&guests=${guestCount}`);
+  }
+
+  const showStill = videoFailed || reduceMotion;
+
   return (
-    <section className="relative h-screen min-h-[600px]">
-      {/* Background Image */}
-      <div className="absolute inset-0">
-        <Image
-          src={PLACEHOLDER_IMAGES.hero[0]}
-          alt="Panorama Seaside Studios - Beachfront accommodation in Mastichari, Kos"
-          fill
-          className="object-cover"
-          priority
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/40 to-black/75" />
-      </div>
+    <section ref={frame} className="relative flex min-h-[100svh] flex-col overflow-hidden bg-[#1c1916] text-[#f3efe8]">
+      <motion.div
+        className="absolute inset-0"
+        style={reduce ? undefined : { y: pictureY, scale: pictureScale }}
+      >
+        {showStill ? (
+          <Image
+            src={PLACEHOLDER_IMAGES.hero[0]}
+            alt="The Aegean from a balcony at Panorama Seaside Studios, Mastichari"
+            fill
+            priority
+            className="object-cover"
+            sizes="100vw"
+          />
+        ) : (
+          <video
+            src="/videos/hero-landing.mp4"
+            poster="/images/hero/hero-poster.jpg"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+            onError={() => setVideoFailed(true)}
+            className="h-full w-full object-cover"
+          />
+        )}
+      </motion.div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-black/30" />
 
-      {/* Content */}
-      <div className="relative flex h-full items-center justify-center px-4 text-center">
-        <div className="max-w-3xl">
-          {/* Glowing Logo */}
-          <div
-            className={`mb-8 transition-all duration-1000 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
-          >
-            <PanoramaLogo
-              variant="light"
-              showIcon={true}
-              glow={true}
-              className="mx-auto"
-            />
-          </div>
+      <div className="relative z-10 flex flex-1 flex-col justify-end px-5 pb-32 pt-28 sm:px-10 sm:pb-36 lg:px-16">
+        <p className="font-sans text-[0.72rem] font-medium uppercase tracking-[0.22em] text-[#f3efe8]">
+          {t("title")}
+        </p>
+        <motion.div
+          initial={reduce ? false : { y: 28 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 1.05, delay: 0.08, ease: cinematic }}
+        >
+        <h1 className="font-film mt-4 max-w-3xl text-[clamp(2.6rem,6vw,5.6rem)] font-medium leading-[0.96] tracking-[-0.03em]">
+          {t("filmTitle")}
+        </h1>
+        <p className="mt-4 max-w-sm font-sans text-base font-medium leading-snug text-[#f3efe8]">
+          {t("filmPlace")}
+        </p>
+        </motion.div>
 
-          {/* Decorative line */}
-          <div
-            className={`mb-6 flex items-center justify-center gap-4 transition-all duration-1000 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+        <form
+          action={locale === "en" ? "/booking" : `/${locale}/booking`}
+          method="get"
+          onSubmit={onSubmit}
+          className="mt-8"
+        >
+          <motion.div
+            initial={reduce ? false : { y: 28 }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.9, delay: 0.45, ease: cinematic }}
           >
-            <div className="h-px w-12 bg-gold" />
-            <span className="text-shimmer text-sm font-medium uppercase tracking-[0.3em]">
-              Kos Island, Greece
-            </span>
-            <div className="h-px w-12 bg-gold" />
-          </div>
-
-          <h1
-            className={`font-serif text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl lg:text-7xl transition-all duration-1000 delay-400 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
-          >
-            {t("title")}
-          </h1>
-
-          <p
-            className={`mx-auto mt-6 max-w-xl text-lg text-white/90 sm:text-xl transition-all duration-1000 delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
-          >
-            {t("subtitle")}
-          </p>
-
-          <div
-            className={`mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center transition-all duration-1000 delay-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
-          >
-            <Link href="/rooms">
-              <Button size="lg" variant="primary" className="btn-glow">
-                {t("cta")}
-              </Button>
-            </Link>
-            <Link href="/booking">
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-deep-blue btn-glow-gold"
+          <Card className="glass-card mx-auto w-full max-w-md border-white/50 bg-transparent text-[#1c1916] shadow-none">
+            <CardContent className="grid grid-cols-2 items-end gap-x-3 gap-y-4 p-5">
+              <label className="block text-left font-sans text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#1c1916]">
+                {t("arrive")}
+                <Input
+                  type="date"
+                  name="checkIn"
+                  required
+                  min={tomorrow || undefined}
+                  value={checkIn}
+                  onChange={(event) => {
+                    setCheckIn(event.target.value);
+                    if (checkOut && event.target.value >= checkOut) setCheckOut("");
+                  }}
+                  className="mt-2 h-10 border-black/15 bg-white/80 px-3 text-left font-sans text-[0.95rem] font-medium text-[#1c1916]"
+                />
+              </label>
+              <label className="block text-left font-sans text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#1c1916]">
+                {t("leave")}
+                <Input
+                  type="date"
+                  name="checkOut"
+                  required
+                  min={checkIn || tomorrow || undefined}
+                  value={checkOut}
+                  onChange={(event) => setCheckOut(event.target.value)}
+                  className="mt-2 h-10 border-black/15 bg-white/80 px-3 text-left font-sans text-[0.95rem] font-medium text-[#1c1916]"
+                />
+              </label>
+              <label className="col-span-2 block text-left font-sans text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#1c1916]">
+                {bookingT("guests")}
+                <select
+                  name="guests"
+                  value={guests}
+                  onChange={(event) => setGuests(Number(event.target.value))}
+                  className="mt-2 h-10 w-full rounded-md border border-black/15 bg-white/80 px-3 font-sans text-[0.95rem] font-medium text-[#1c1916] outline-none"
+                >
+                  {[1, 2, 3, 4, 5, 6].map((count) => (
+                    <option key={count} value={count} className="text-black">
+                      {count}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="col-span-2 h-11 bg-[#1c1916] font-sans text-sm font-semibold tracking-wide text-[#f3efe8]"
               >
-                {t("ctaBook")}
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-        <div className="flex h-10 w-6 items-start justify-center rounded-full border-2 border-white/50 p-1.5">
-          <div className="h-2 w-1 rounded-full bg-white/70" />
-        </div>
+                {t("checkDates")}
+              </button>
+            </CardContent>
+          </Card>
+          </motion.div>
+        </form>
       </div>
     </section>
   );

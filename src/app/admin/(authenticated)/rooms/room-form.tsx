@@ -29,6 +29,7 @@ type Room = {
   totalUnits: number;
   amenities: string[];
   images: RoomImage[];
+  tourUrl?: string | null;
 };
 
 const ALL_AMENITIES = Object.keys(AMENITY_LABELS);
@@ -59,6 +60,7 @@ export function RoomForm({
   const [totalUnits, setTotalUnits] = useState(room?.totalUnits || 1);
   const [amenities, setAmenities] = useState<string[]>(room?.amenities || []);
   const [images, setImages] = useState<RoomImage[]>(room?.images || []);
+  const [tourUrl, setTourUrl] = useState(room?.tourUrl || "");
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -190,6 +192,7 @@ export function RoomForm({
       basePrice: Number(basePrice),
       totalUnits,
       amenities,
+      tourUrl,
       images: images.map((img, i) => ({
         url: img.url,
         alt: img.alt || nameEn,
@@ -455,6 +458,22 @@ export function RoomForm({
             onChange={(e) => handleUpload(e.target.files)}
           />
         </div>
+      </div>
+
+      {/* 3D Tour */}
+      <div className="mt-6">
+        <label className="block text-xs font-medium text-gray-600">3D Tour (Gaussian splat)</label>
+        <input
+          type="text"
+          value={tourUrl}
+          onChange={(e) => setTourUrl(e.target.value)}
+          placeholder="/tours/seafront-studio.sog"
+          className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-mono text-sm focus:border-deep-blue focus:outline-none"
+        />
+        <p className="mt-1 text-[11px] text-gray-400">
+          Scan the room (e.g. Scaniverse app), put the .sog / .ply file in public/tours/ and enter its
+          path. Leave empty for no 3D tour.
+        </p>
       </div>
 
       {/* Amenities */}

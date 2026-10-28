@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { getLocalizedField } from "@/lib/utils";
 import { PLACEHOLDER_IMAGES } from "@/lib/constants";
+import { LISTING_ROOMS } from "@/lib/listing";
 import { RoomCard } from "@/components/rooms/room-card";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = t("title");
   const description =
-    "Explore beachfront studios & apartments at Panorama Seaside in Mastichari, Kos. Sea view rooms, double rooms with balcony — book your Kos Island getaway from €50/night.";
+    "Explore beachfront studios and apartments at Panorama Seaside in Mastichari, Kos. Sea view rooms and doubles with a balcony.";
 
   return {
     title,
@@ -93,6 +94,18 @@ export default async function RoomsPage({ params }: Props) {
   } catch {
     rooms = [];
   }
+  if (rooms.length === 0) {
+    rooms = LISTING_ROOMS.map((room) => ({
+      slug: room.slug,
+      nameEn: room.nameEn,
+      nameEl: room.nameEl,
+      nameDe: room.nameDe,
+      capacity: room.capacity,
+      sizeSqm: room.sizeSqm,
+      basePrice: room.basePrice,
+      primaryImage: room.image,
+    }));
+  }
 
   return (
     <>
@@ -102,21 +115,11 @@ export default async function RoomsPage({ params }: Props) {
         { name: t("title"), url: localeUrl("/rooms", locale) },
       ]}
     />
-    <section className="bg-cream py-20 sm:py-28">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div className="text-center">
-          <div className="mb-2 flex items-center justify-center gap-3">
-            <div className="h-px w-8 bg-gold" />
-            <span className="text-sm font-medium uppercase tracking-wider text-terracotta">
-              {t("subtitle")}
-            </span>
-            <div className="h-px w-8 bg-gold" />
-          </div>
-          <h1 className="font-serif text-4xl font-bold text-deep-blue sm:text-5xl">
-            {t("title")}
-          </h1>
-        </div>
+    <section className="bg-[#f3efe8] px-5 py-28 text-[#1c1916] sm:px-10 lg:px-16">
+      <div>
+        <h1 className="font-film text-5xl font-medium leading-none sm:text-6xl">
+          {t("title")}
+        </h1>
 
         {/* Room Cards Grid */}
         <div className="mt-14 flex flex-wrap justify-center gap-4">

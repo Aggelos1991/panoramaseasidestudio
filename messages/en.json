@@ -9,13 +9,45 @@
     "gallery": "Gallery",
     "about": "About",
     "contact": "Contact",
-    "bookNow": "Book Now"
+    "bookNow": "Book Now",
+    "signIn": "Sign in",
+    "account": "Your stays"
   },
   "hero": {
     "title": "Panorama Seaside Studios",
     "subtitle": "Beachfront studios & apartments in the charming village of Mastichari, Kos Island",
     "cta": "Explore Our Rooms",
-    "ctaBook": "Book Your Stay"
+    "ctaBook": "Book Your Stay",
+    "filmTitle": "Wake up on the beach.",
+    "filmPlace": "Beachfront studios in Mastichari, Kos.",
+    "arrive": "Arrive",
+    "leave": "Leave",
+    "checkDates": "Check these dates"
+  },
+  "account": {
+    "title": "Your stays",
+    "intro": "Sign in to see the nights you have booked, on one calendar.",
+    "loading": "Loading your stays",
+    "signIn": "Sign in",
+    "create": "Create an account",
+    "email": "Email",
+    "password": "Password",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "submitSignIn": "Sign in",
+    "submitCreate": "Create account",
+    "signOut": "Sign out",
+    "empty": "No stays are linked to this account yet. Book while you are signed in, and the nights will show up here.",
+    "book": "Book a stay",
+    "passwordHint": "At least 8 characters.",
+    "missing": "Enter your name, email, and a password of at least 8 characters.",
+    "invalid": "That email and password do not match.",
+    "exists": "An account with this email already exists. Sign in instead.",
+    "failed": "The account could not be saved. Try again in a moment.",
+    "reference": "Reference",
+    "nights": "nights",
+    "previous": "Previous month",
+    "next": "Next month"
   },
   "about": {
     "title": "About Panorama Seaside",
@@ -47,7 +79,10 @@
     "description": "Description",
     "bedType": "Bed Type",
     "roomSize": "Room Size",
-    "maxGuests": "Max Guests"
+    "maxGuests": "Max Guests",
+    "photos": "Photos",
+    "tour3d": "3D Tour",
+    "tourHint": "Drag to look around"
   },
   "booking": {
     "title": "Book Your Stay",
@@ -69,6 +104,10 @@
     "noRoomsAvailable": "No rooms available for the selected dates",
     "available": "Available",
     "unavailable": "Unavailable",
+    "syncNote": "Marked dates include reservations synced from Booking.com.",
+    "nightFull": "Fully booked",
+    "nightClosed": "Closed for the season",
+    "nightBusy": "Some rooms already reserved",
     "proceedToDetails": "Continue to Guest Details",
     "proceedToPayment": "Proceed to Payment",
     "confirmBooking": "Confirm Booking",
@@ -95,7 +134,11 @@
     "tryAgain": "Try Again",
     "paymentRedirectNote": "You will be redirected to our secure payment page to complete your booking.",
     "paymentSuccessful": "Payment Successful",
-    "paid": "Paid"
+    "paid": "Paid",
+    "paymentMethod": "Payment method",
+    "payCardTitle": "Card & digital wallets",
+    "payBtcTitle": "Bitcoin",
+    "payBtcDesc": "Pay with Bitcoin or Lightning via BTCPay"
   },
   "gallery": {
     "title": "Photo Gallery",
@@ -130,7 +173,7 @@
   },
   "testimonials": {
     "title": "What Our Guests Say",
-    "subtitle": "Rated 8.9/10 by Over 200 Guests"
+    "subtitle": "Rated 9.0 by 232 guests"
   },
   "cta": {
     "title": "Ready for Your Greek Island Escape?",
@@ -151,13 +194,13 @@
     "q1": "How far is Panorama Seaside Studios from the beach?",
     "a1": "We are literally steps from the beach! Panorama Seaside Studios sits right on the seafront in Mastichari, Kos. You can walk to the golden sandy beach in under a minute.",
     "q2": "What are the check-in and check-out times?",
-    "a2": "Check-in is from 14:00 and check-out is by 12:00. Early check-in or late check-out may be available upon request, depending on availability.",
+    "a2": "Check-in is from 14:00 until midnight, and check-out is by 12:00. If you will arrive after reception hours, tell us in advance. Pets are not allowed, and the minimum check-in age is 18.",
     "q3": "Is there free parking at the hotel?",
     "a3": "Yes, we offer free private parking for all guests. There is ample space right next to our studios in Mastichari.",
     "q4": "How do I get from Kos Airport to Mastichari?",
     "a4": "Kos Airport (KGS) is approximately 20 km from Mastichari. You can reach us by taxi (about 25 minutes), rental car, or public bus. We can help arrange airport transfers upon request.",
     "q5": "Do the rooms have a kitchen or kitchenette?",
-    "a5": "Our studio apartments come equipped with a fully functional kitchenette including a fridge, electric hobs, kettle, and basic cooking utensils. Double rooms have a mini fridge.",
+    "a5": "The two studios have a kitchenette with a fridge, kettle, coffee maker, and kitchenware. The double and twin rooms have a fridge, kettle, and coffee maker, and no kitchenette.",
     "q6": "Is there a restaurant on site?",
     "a6": "Yes! Our beachfront restaurant and bar serves fresh Greek dishes, snacks, and drinks throughout the day. Enjoy your meal with stunning sea views right on Mastichari Beach.",
     "q7": "What is there to do in Mastichari, Kos?",
@@ -165,7 +208,7 @@
     "q8": "Is Panorama Seaside Studios family-friendly?",
     "a8": "Absolutely! We are a family-run hotel and welcome families with children. We have a playground on site, spacious rooms, and the shallow sandy beach in Mastichari is perfect for kids.",
     "q9": "Do you have rooms with sea view?",
-    "a9": "Yes, our Seafront Luxury Studios and Superior Double Rooms with Sea View offer stunning views of the Aegean Sea directly from your private balcony.",
+    "a9": "Yes. The Seafront Luxury Studio, the Deluxe Double Room, and the Superior Twin Room with Sea View look over the Aegean from a private balcony.",
     "q10": "What is the cancellation policy?",
     "a10": "Free cancellation is available up to 7 days before arrival. Cancellations within 7 days may be subject to a charge. Please contact us for specific details regarding your booking."
   },

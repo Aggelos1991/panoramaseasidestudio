@@ -1,12 +1,10 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import Image from "next/image";
 import { Link } from "@/i18n/navigation";
-import { Users, Maximize, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { getLocalizedField } from "@/lib/utils";
-import { useAnimateOnScroll } from "@/hooks/use-animate-on-scroll";
+import TiltedCard from "@/components/react-bits/TiltedCard";
+import { Reel, ReelGroup, ReelItem } from "@/components/motion/reel";
 
 type RoomPreview = {
   slug: string;
@@ -22,87 +20,57 @@ type RoomPreview = {
 export function RoomsPreview({ rooms }: { rooms: RoomPreview[] }) {
   const t = useTranslations("rooms");
   const locale = useLocale();
-  const { ref, isVisible } = useAnimateOnScroll();
 
   return (
-    <section className="bg-cream py-20 sm:py-28">
-      <div ref={ref} className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div
-          className={`text-center transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
-        >
-          <div className="mb-2 flex items-center justify-center gap-3">
-            <div className="h-px w-8 bg-gold" />
-            <span className="text-sm font-medium uppercase tracking-wider text-terracotta">
-              {t("subtitle")}
-            </span>
-            <div className="h-px w-8 bg-gold" />
-          </div>
-          <h2 className="font-serif text-3xl font-bold text-deep-blue sm:text-4xl">
-            {t("title")}
-          </h2>
-        </div>
+    <section id="accommodations" className="bg-[#f3efe8] px-5 py-20 text-[#1c1916] sm:px-10 sm:py-28 lg:px-16">
+      <Reel>
+      <h2 className="font-film text-4xl font-medium leading-none tracking-tight sm:text-5xl">
+        {t("title")}
+      </h2>
+      </Reel>
 
-        {/* Room Cards — Glassmorphism */}
-        <div className="mt-14 flex flex-wrap justify-center gap-4">
-          {rooms.map((room, i) => (
-            <Link
-              key={room.slug}
-              href={`/rooms/${room.slug}`}
-              className={`group flex w-full flex-col overflow-hidden rounded-2xl glass-gold card-hover sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)] transition-all duration-700 ${
-                isVisible
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-8"
-              }`}
-              style={{ transitionDelay: isVisible ? `${200 + i * 150}ms` : "0ms" }}
-            >
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <Image
-                  src={room.primaryImage}
-                  alt={getLocalizedField(room, "name", locale)}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-110"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="absolute bottom-3 right-3 rounded-lg bg-terracotta/90 backdrop-blur-sm px-3 py-1.5 text-sm font-semibold text-white shadow-md">
-                  {t("from")} &euro;{room.basePrice}
-                </div>
-              </div>
-              <div className="flex flex-1 flex-col p-4">
-                <h3 className="font-serif text-base font-semibold text-deep-blue">
-                  {getLocalizedField(room, "name", locale)}
-                </h3>
-                <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5" />
-                    {room.capacity}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Maximize className="h-3.5 w-3.5" />
-                    {room.sizeSqm} m&sup2;
-                  </span>
-                </div>
-                <div className="mt-auto pt-3 flex items-center gap-1 text-xs font-medium text-terracotta transition-all duration-300 group-hover:translate-x-1">
-                  {t("viewDetails")} <ArrowRight className="h-3.5 w-3.5" />
-                </div>
-              </div>
+      <ReelGroup className="mt-12 grid gap-10 sm:grid-cols-2 xl:grid-cols-3">
+        {rooms.map((room, index) => {
+          const name = getLocalizedField(room, "name", locale);
+          return (
+            <ReelItem key={room.slug}>
+            <Link href={`/rooms/${room.slug}`} className="block">
+              <TiltedCard
+                imageSrc={room.primaryImage}
+                altText={name}
+                captionText={name}
+                showTooltip={false}
+                floating
+                intro
+                introDelay={index * 90}
+                containerHeight="440px"
+                containerWidth="100%"
+                imageHeight="440px"
+                imageWidth="100%"
+                rotateAmplitude={10}
+                scaleOnHover={1.04}
+                displayOverlayContent
+                overlayContent={
+                  <div className="flex h-full flex-col justify-end p-4 text-[#f3efe8]">
+                    <div className="glass-on-photo rounded-2xl p-4">
+                    <p className="text-sm text-[#e4d2a8]">
+                      {t("from")} €{room.basePrice}
+                    </p>
+                    <p className="font-film mt-1 text-3xl leading-none">{name}</p>
+                    <p className="mt-3 text-sm leading-relaxed text-[#f3efe8]/80">
+                      {t("capacity", { count: room.capacity })}
+                      <br />
+                      {t("size", { size: room.sizeSqm })}
+                    </p>
+                    </div>
+                  </div>
+                }
+              />
             </Link>
-          ))}
-        </div>
-
-        {/* View All Button */}
-        <div
-          className={`mt-12 text-center transition-all duration-700 delay-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
-        >
-          <Link href="/rooms">
-            <Button variant="outline" size="lg" className="btn-glow">
-              {t("viewDetails")}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-      </div>
+            </ReelItem>
+          );
+        })}
+      </ReelGroup>
     </section>
   );
 }

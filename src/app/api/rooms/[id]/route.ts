@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStringArray, toJsonArray } from "@/lib/json-array";
 import { getAdminSession } from "@/lib/auth";
+import { parseTourUrl } from "@/lib/tours";
 
 export async function GET(
   _request: NextRequest,
@@ -62,6 +63,13 @@ export async function PATCH(
       if (body[field] !== undefined) data[field] = body[field];
     }
     if (amenities !== undefined) data.amenities = toJsonArray(amenities);
+    if (body.tourUrl !== undefined) {
+      const parsedTour = parseTourUrl(body.tourUrl);
+      if ("error" in parsedTour) {
+        return NextResponse.json({ error: parsedTour.error }, { status: 400 });
+      }
+      data.tourUrl = parsedTour.tourUrl;
+    }
 
     const room = await prisma.room.update({
       where: { id },

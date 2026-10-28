@@ -1,9 +1,12 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import Image from "next/image";
+import { useLocale, useTranslations } from "next-intl";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import { Users, Maximize, Check } from "lucide-react";
+import { Check } from "lucide-react";
+import { AMENITY_LABELS } from "@/lib/constants";
+import TiltedCard from "@/components/react-bits/TiltedCard";
+import { cinematic } from "@/components/motion/reel";
 import type { AvailableRoom } from "@/app/[locale]/booking/page";
 
 type Props = {
@@ -15,98 +18,87 @@ type Props = {
 
 export function RoomSelector({ rooms, loading, selectedRoom, onSelect }: Props) {
   const t = useTranslations("booking");
+  const roomsT = useTranslations("rooms");
+  const locale = useLocale();
 
   if (loading) {
     return (
-      <div className="rounded-2xl bg-white p-8 shadow-soft">
-        <h3 className="mb-6 font-serif text-xl font-semibold text-deep-blue">
-          {t("selectRoom")}
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="animate-pulse rounded-xl border border-sandy p-4"
-            >
-              <div className="aspect-video rounded-lg bg-sandy" />
-              <div className="mt-4 h-5 w-3/4 rounded bg-sandy" />
-              <div className="mt-2 h-4 w-1/2 rounded bg-sandy" />
-            </div>
-          ))}
-        </div>
+      <div className="grid gap-8 sm:grid-cols-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-[440px] animate-pulse rounded-3xl bg-black/5" />
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-soft sm:p-8">
-      <h3 className="mb-6 font-serif text-xl font-semibold text-deep-blue">
+    <div>
+      <h3 className="font-film text-4xl font-medium leading-none tracking-tight text-[#1c1916] sm:text-5xl">
         {t("selectRoom")}
       </h3>
 
       {rooms.length === 0 ? (
-        <p className="text-center text-gray-500 py-8">{t("noRoomsAvailable")}</p>
+        <p className="py-12 text-center text-[#1c1916]/70">{t("noRoomsAvailable")}</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {rooms.map((room) => {
+        <div className="mt-10 grid gap-10 sm:grid-cols-2">
+          {rooms.map((room, index) => {
             const isSelected = selectedRoom?.id === room.id;
+            const amenities = room.amenities
+              .slice(0, 3)
+              .map((key) => AMENITY_LABELS[key]?.[locale] || AMENITY_LABELS[key]?.en || key)
+              .join(" · ");
             return (
-              <button
+              <motion.button
                 key={room.id}
+                type="button"
                 onClick={() => onSelect(room)}
+                initial={{ y: 48 }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.85, delay: index * 0.08, ease: cinematic }}
                 className={cn(
-                  "group relative overflow-hidden rounded-xl border-2 p-4 text-left transition-all",
-                  isSelected
-                    ? "border-terracotta bg-terracotta/5 shadow-md"
-                    : "border-sandy hover:border-terracotta/50 hover:shadow-soft",
+                  "block w-full rounded-[28px] text-left",
+                  isSelected && "ring-2 ring-[#8a6232] ring-offset-4 ring-offset-[#f3efe8]",
                 )}
               >
                 {isSelected && (
-                  <div className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-terracotta text-white">
+                  <span className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-[#1c1916] text-[#f3efe8]">
                     <Check className="h-4 w-4" />
-                  </div>
+                  </span>
                 )}
-
-                <div className="relative aspect-video overflow-hidden rounded-lg">
-                  <Image
-                    src={room.imageUrl}
-                    alt={room.name}
-                    fill
-                    className="object-cover transition-transform group-hover:scale-105"
-                    sizes="(max-width: 640px) 100vw, 50vw"
-                  />
-                </div>
-
-                <div className="mt-4">
-                  <h4 className="font-serif text-lg font-semibold text-deep-blue">
-                    {room.name}
-                  </h4>
-                  <div className="mt-2 flex items-center gap-3 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5" />
-                      {room.capacity}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Maximize className="h-3.5 w-3.5" />
-                      {room.sizeSqm} m&sup2;
-                    </span>
-                  </div>
-                  <div className="mt-3 flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-terracotta">
-                      &euro;{room.pricePerNight}
-                    </span>
-                    <span className="text-sm text-gray-400">
-                      / {t("pricePerNight").toLowerCase()}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-sm text-gray-500">
-                    {t("nights", { count: room.nights })} &middot;{" "}
-                    <span className="font-semibold text-deep-blue">
-                      {t("totalPrice")}: &euro;{room.totalPrice}
-                    </span>
-                  </div>
-                </div>
-              </button>
+                <TiltedCard
+                  imageSrc={room.imageUrl}
+                  altText={room.name}
+                  captionText={room.name}
+                  showTooltip={false}
+                  floating
+                  intro
+                  introDelay={index * 120}
+                  glare={0.35}
+                  shadow={0.4}
+                  containerHeight="440px"
+                  containerWidth="100%"
+                  imageHeight="440px"
+                  imageWidth="100%"
+                  rotateAmplitude={16}
+                  scaleOnHover={1.06}
+                  displayOverlayContent
+                  overlayContent={
+                    <div className="flex h-full flex-col justify-end p-4 text-[#f3efe8]">
+                      <div className="glass-on-photo rounded-2xl p-4">
+                        <p className="font-film text-3xl leading-none">{room.name}</p>
+                        <p className="mt-3 text-sm leading-relaxed text-[#f3efe8]/80">
+                          {roomsT("capacity", { count: room.capacity })}
+                          <br />
+                          {roomsT("size", { size: room.sizeSqm })}
+                        </p>
+                        {amenities && (
+                          <p className="mt-3 text-sm text-[#e4d2a8]">{amenities}</p>
+                        )}
+                      </div>
+                    </div>
+                  }
+                />
+              </motion.button>
             );
           })}
         </div>

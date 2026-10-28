@@ -1,9 +1,11 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { differenceInDays, format, parseISO } from "date-fns";
+import { LISTING_ROOMS } from "@/lib/listing";
+import { getLocalizedField } from "@/lib/utils";
 import { BookingSteps } from "@/components/booking/booking-steps";
 import { DateSelector } from "@/components/booking/date-selector";
 import { RoomSelector } from "@/components/booking/room-selector";
@@ -34,6 +36,12 @@ export type AvailableRoom = {
   amenities: string[];
 };
 
+function parseQueryDate(value: string | null): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = parseISO(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export type GuestDetails = {
   firstName: string;
   lastName: string;
@@ -43,23 +51,65 @@ export type GuestDetails = {
   specialRequests?: string;
 };
 
+function roomsFromListing(locale: string, nights: number, guests: number): AvailableRoom[] {
+  return LISTING_ROOMS.filter((room) => room.capacity >= guests).map((room) => ({
+    id: room.slug,
+    slug: room.slug,
+    name: getLocalizedField(room, "name", locale),
+    capacity: room.capacity,
+    sizeSqm: room.sizeSqm,
+    bedType: room.bedType,
+    pricePerNight: room.basePrice,
+    totalPrice: room.basePrice * nights,
+    nights,
+    imageUrl: room.image,
+    amenities: room.amenities,
+  }));
+}
+
 export default function BookingPage() {
   const t = useTranslations("booking");
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedRoom = searchParams.get("room");
+  const initialCheckIn = parseQueryDate(searchParams.get("checkIn"));
+  const initialCheckOut = parseQueryDate(searchParams.get("checkOut"));
+  const initialGuests = Number(searchParams.get("guests"));
 
   const [step, setStep] = useState(1);
   const [booking, setBooking] = useState<BookingState>({
-    checkIn: null,
-    checkOut: null,
-    guests: 2,
+    checkIn: initialCheckIn,
+    checkOut:
+      initialCheckIn && initialCheckOut && initialCheckOut > initialCheckIn
+        ? initialCheckOut
+        : null,
+    guests: initialGuests >= 1 && initialGuests <= 6 ? initialGuests : 2,
     selectedRoom: null,
     guestDetails: null,
   });
   const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [payOptions, setPayOptions] = useState<{
+    card: boolean;
+    wallets: boolean;
+    paypal: boolean;
+    btcpay: boolean;
+  } | null>(null);
+  const [payMethod, setPayMethod] = useState<"stripe" | "btcpay">("stripe");
+
+  // Discover available payment methods when reaching the review step
+  useEffect(() => {
+    if (step === 3 && !payOptions) {
+      fetch("/api/payment-methods")
+        .then((r) => r.json())
+        .then(setPayOptions)
+        .catch(() =>
+          setPayOptions({ card: true, wallets: true, paypal: false, btcpay: false }),
+        );
+    }
+  }, [step, payOptions]);
 
   // Check availability when dates change
   useEffect(() => {
@@ -80,10 +130,14 @@ export default function BookingPage() {
           checkIn: format(booking.checkIn, "yyyy-MM-dd"),
           checkOut: format(booking.checkOut, "yyyy-MM-dd"),
           guests: booking.guests,
+          locale,
         }),
       });
       const data = await res.json();
-      setAvailableRooms(data.rooms || []);
+      const nights = differenceInDays(booking.checkOut, booking.checkIn);
+      setAvailableRooms(
+        res.ok ? data.rooms || [] : roomsFromListing(locale, nights, booking.guests),
+      );
 
       // Auto-select preselected room if available
       if (preselectedRoom && !booking.selectedRoom) {
@@ -95,7 +149,15 @@ export default function BookingPage() {
         }
       }
     } catch {
-      setAvailableRooms([]);
+      if (booking.checkIn && booking.checkOut) {
+        setAvailableRooms(
+          roomsFromListing(
+            locale,
+            differenceInDays(booking.checkOut, booking.checkIn),
+            booking.guests,
+          ),
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -114,6 +176,7 @@ export default function BookingPage() {
           checkIn: format(booking.checkIn!, "yyyy-MM-dd"),
           checkOut: format(booking.checkOut!, "yyyy-MM-dd"),
           guests: booking.guests,
+          paymentMethod: payMethod,
           ...booking.guestDetails,
         }),
       });
@@ -240,6 +303,51 @@ export default function BookingPage() {
                 <ArrowLeft className="h-4 w-4" /> {t("backToRooms")}
               </button>
               <BookingSummary booking={booking} showGuestDetails />
+
+              {/* Payment method */}
+              <div className="mt-8">
+                <h3 className="mb-3 font-serif text-lg font-semibold text-deep-blue">
+                  {t("paymentMethod")}
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setPayMethod("stripe")}
+                    className={`rounded-xl border-2 p-4 text-left transition-colors ${
+                      payMethod === "stripe"
+                        ? "border-terracotta bg-terracotta/5"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="block font-medium text-deep-blue">
+                      💳 {t("payCardTitle")}
+                    </span>
+                    <span className="mt-1 block text-xs text-gray-500">
+                      Visa · Mastercard · Apple Pay · Google Pay
+                      {payOptions?.paypal ? " · PayPal" : ""}
+                    </span>
+                  </button>
+                  {payOptions?.btcpay && (
+                    <button
+                      type="button"
+                      onClick={() => setPayMethod("btcpay")}
+                      className={`rounded-xl border-2 p-4 text-left transition-colors ${
+                        payMethod === "btcpay"
+                          ? "border-terracotta bg-terracotta/5"
+                          : "border-gray-200 bg-white hover:border-gray-300"
+                      }`}
+                    >
+                      <span className="block font-medium text-deep-blue">
+                        ₿ {t("payBtcTitle")}
+                      </span>
+                      <span className="mt-1 block text-xs text-gray-500">
+                        {t("payBtcDesc")}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="mt-8 text-center">
                 <Button
                   size="lg"

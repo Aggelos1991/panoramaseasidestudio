@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateReferenceNumber } from "@/lib/utils";
 import { encrypt, decryptPII, BOOKING_PII_FIELDS } from "@/lib/gdpr-crypto";
-import { getAdminSession } from "@/lib/auth";
+import { getAdminSession, getGuestSession } from "@/lib/auth";
 import { calculateStayPrice } from "@/lib/pricing";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
       checkInDate,
       checkOutDate,
     );
+
+    const guestSession = await getGuestSession();
 
     // Use a transaction to prevent double booking
     const booking = await prisma.$transaction(async (tx) => {
@@ -125,6 +127,7 @@ export async function POST(request: NextRequest) {
           gdprConsent: true,
           gdprConsentAt: new Date(),
           locale,
+          guestId: guestSession?.id,
           status: "CONFIRMED",
           paymentStatus: "PAID",
         },

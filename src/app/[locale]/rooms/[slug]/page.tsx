@@ -4,7 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { getLocalizedField } from "@/lib/utils";
 import { AMENITY_LABELS, AMENITY_ICONS } from "@/lib/constants";
+import { listingRoomBySlug } from "@/lib/listing";
 import { parseStringArray } from "@/lib/json-array";
+import { tourCredit, tourViewerSrc } from "@/lib/tours";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { RoomGallery } from "@/components/rooms/room-gallery";
@@ -32,9 +34,31 @@ type RoomDetail = {
   basePrice: number;
   amenities: string[];
   images: { url: string; alt?: string }[];
+  tourUrl: string | null;
 };
 
 // ─── Data fetching ──────────────────────────────────────────
+
+function fromListing(slug: string): RoomDetail | null {
+  const room = listingRoomBySlug(slug);
+  if (!room) return null;
+  return {
+    slug: room.slug,
+    nameEn: room.nameEn,
+    nameEl: room.nameEl,
+    nameDe: room.nameDe,
+    descEn: room.descEn,
+    descEl: room.descEl,
+    descDe: room.descDe,
+    capacity: room.capacity,
+    bedType: room.bedType,
+    sizeSqm: room.sizeSqm,
+    basePrice: room.basePrice,
+    amenities: room.amenities,
+    images: [{ url: room.image, alt: room.nameEn }],
+    tourUrl: null,
+  };
+}
 
 async function getRoom(slug: string) {
   const room = await prisma.room.findUnique({
@@ -46,7 +70,7 @@ async function getRoom(slug: string) {
     },
   });
 
-  if (!room) return null;
+  if (!room) return fromListing(slug);
 
   return {
     slug: room.slug,
@@ -62,6 +86,7 @@ async function getRoom(slug: string) {
     basePrice: Number(room.basePrice),
     amenities: parseStringArray(room.amenities),
     images: room.images.map((img) => ({ url: img.url, alt: img.alt ?? undefined })),
+    tourUrl: room.tourUrl,
   };
 }
 
@@ -87,7 +112,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     room = await getRoom(slug);
   } catch {
-    // DB error
+    room = fromListing(slug);
   }
 
   if (!room) {
@@ -131,7 +156,11 @@ export default async function RoomDetailPage({ params }: PageProps) {
   try {
     room = await getRoom(slug);
   } catch {
-    // DB error
+    room = null;
+  }
+
+  if (!room) {
+    room = fromListing(slug);
   }
 
   if (!room) {
@@ -164,8 +193,19 @@ export default async function RoomDetailPage({ params }: PageProps) {
     />
     <section className="bg-cream py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Image Gallery */}
-        <RoomGallery images={room.images} />
+        {/* Image Gallery + 3D tour */}
+        <RoomGallery
+          images={room.images}
+          tour={
+            room.tourUrl
+              ? {
+                  src: tourViewerSrc(room.tourUrl, locale, room.images[0]?.url),
+                  credit: tourCredit(room.tourUrl),
+                }
+              : undefined
+          }
+          labels={{ photos: t("photos"), tour3d: t("tour3d"), tourHint: t("tourHint") }}
+        />
 
         {/* Room Content */}
         <div className="mt-10 grid gap-10 lg:grid-cols-3">
@@ -235,19 +275,9 @@ export default async function RoomDetailPage({ params }: PageProps) {
           {/* Right column: Price & Booking CTA */}
           <div>
             <div className="lg:sticky lg:top-28 rounded-2xl bg-white p-6 shadow-elegant">
-              <div className="text-center">
-                <span className="text-sm font-medium uppercase tracking-wider text-terracotta">
-                  {t("from")}
-                </span>
-                <div className="mt-1 font-serif text-4xl font-bold text-deep-blue">
-                  &euro;{room.basePrice}
-                </div>
-                <span className="text-sm text-gray-500">{t("perNight")}</span>
-              </div>
-
-              <div className="mt-6">
+              <div>
                 <Link href={`/booking?room=${room.slug}`}>
-                  <Button variant="primary" size="lg" className="w-full">
+                  <Button variant="secondary" size="lg" className="w-full">
                     {t("bookThisRoom")}
                     <ArrowRight className="h-4 w-4" />
                   </Button>

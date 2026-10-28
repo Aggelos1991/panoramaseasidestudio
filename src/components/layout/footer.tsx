@@ -7,10 +7,10 @@ export function Footer() {
   const t = useTranslations("footer");
 
   return (
-    <footer className="bg-deep-blue text-white">
+    <footer className="bg-[#1c1916] text-[#f3efe8]">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center gap-4">
-          <PanoramaLogo variant="gold" showIcon={true} glow={true} className="h-10" />
+          <PanoramaLogo variant="light" showIcon={false} glow={false} className="h-10" />
           <p className="text-center text-xs text-white/40">
             &copy; {new Date().getFullYear()} Panorama Seaside Studios. {t("rights")}
           </p>

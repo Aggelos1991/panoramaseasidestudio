@@ -9,6 +9,8 @@ import { sendBookingNotification } from "@/lib/telegram";
 import { sendBookingConfirmation } from "@/lib/email";
 import { calculateStayPrice } from "@/lib/pricing";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { createBtcpayInvoice, isBtcpayConfigured } from "@/lib/btcpay";
+import { getGuestSession } from "@/lib/auth";
 
 // 10 requests per minute — payment flow
 const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
@@ -31,12 +33,27 @@ export async function POST(request: NextRequest) {
       country,
       specialRequests,
       locale = "en",
+      paymentMethod = "stripe",
     } = body;
 
     if (!roomId || !checkIn || !checkOut || !firstName || !lastName || !email) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
+      );
+    }
+
+    if (paymentMethod !== "stripe" && paymentMethod !== "btcpay") {
+      return NextResponse.json(
+        { error: "Unknown payment method" },
+        { status: 400 },
+      );
+    }
+
+    if (paymentMethod === "btcpay" && !isBtcpayConfigured()) {
+      return NextResponse.json(
+        { error: "Bitcoin payments are not available" },
+        { status: 503 },
       );
     }
 
@@ -57,6 +74,8 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
+
+    const guestSession = await getGuestSession();
 
     // Use a transaction to prevent double booking
     const booking = await prisma.$transaction(async (tx) => {
@@ -133,8 +152,11 @@ export async function POST(request: NextRequest) {
           gdprConsent: true,
           gdprConsentAt: new Date(),
           locale,
+          guestId: guestSession?.id,
           status: "CONFIRMED",
-          paymentStatus: "PAID",
+          // Bitcoin settles asynchronously; card bookings keep the legacy
+          // behavior (webhook/success page reconcile the Stripe payment id)
+          paymentStatus: paymentMethod === "btcpay" ? "PENDING" : "PAID",
         },
         include: { room: true },
       });
@@ -142,12 +164,42 @@ export async function POST(request: NextRequest) {
       return newBooking;
     });
 
-    // Create Stripe Checkout session
     // APP_URL is read at runtime (NEXT_PUBLIC_* gets inlined at build time)
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+    // ─── Bitcoin via BTCPay Server ───
+    if (paymentMethod === "btcpay") {
+      try {
+        const invoice = await createBtcpayInvoice({
+          amount: Number(totalPrice),
+          bookingId: booking.id,
+          referenceNumber: booking.referenceNumber,
+          redirectUrl: `${appUrl}/${locale}/booking/success?ref=${booking.referenceNumber}`,
+          buyerEmail: email,
+        });
+
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: { btcpayInvoiceId: invoice.id, paymentMethod: "btcpay" },
+        });
+
+        // Guest notifications are sent from the BTCPay webhook once the
+        // invoice settles — bitcoin payments are not instant.
+        return NextResponse.json({ url: invoice.checkoutLink });
+      } catch (err) {
+        // Release the room hold — no invoice means no way to pay
+        await prisma.booking
+          .update({ where: { id: booking.id }, data: { status: "CANCELLED" } })
+          .catch(() => {});
+        throw err;
+      }
+    }
+
+    // ─── Card / Apple Pay / Google Pay / PayPal via Stripe Checkout ───
+    // payment_method_types is intentionally omitted: Stripe then offers every
+    // method enabled in the Dashboard (cards + Apple Pay/Google Pay wallets,
+    // and PayPal once activated) that supports the currency.
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
       mode: "payment",
       customer_email: email,
       line_items: [
